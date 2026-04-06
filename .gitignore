@@ -1,0 +1,8 @@
+.dart_tool/
+build/
+.idea/
+*.log
+windows/flutter/ephemeral/
+ios/Flutter/ephemeral/
+macos/Flutter/ephemeral/
+android/.gradle/
