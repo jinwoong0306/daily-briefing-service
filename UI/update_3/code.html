@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Daily Briefing - Onboarding</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-tint": "#0051d2",
+              "secondary-container": "#cbceff",
+              "tertiary-fixed": "#fb9af2",
+              "on-primary-fixed-variant": "#00266d",
+              "surface-dim": "#ced1ff",
+              "outline": "#70749e",
+              "surface-variant": "#d9daff",
+              "on-surface-variant": "#555881",
+              "inverse-primary": "#5f8bff",
+              "surface-container-lowest": "#ffffff",
+              "background": "#f8f5ff",
+              "on-secondary-fixed-variant": "#3b45ac",
+              "on-primary-container": "#001e59",
+              "primary-fixed": "#7a9dff",
+              "inverse-surface": "#06092f",
+              "on-tertiary-container": "#641164",
+              "primary-container": "#7a9dff",
+              "on-secondary-container": "#313ba2",
+              "secondary": "#4650b7",
+              "error": "#b31b25",
+              "primary-fixed-dim": "#648eff",
+              "on-tertiary": "#ffeef8",
+              "error-dim": "#9f0519",
+              "surface-container-low": "#f1efff",
+              "surface-container-high": "#e0e0ff",
+              "tertiary-container": "#fb9af2",
+              "on-tertiary-fixed-variant": "#6e1d6e",
+              "tertiary-dim": "#7f2d7d",
+              "on-error": "#ffefee",
+              "on-background": "#282b51",
+              "on-secondary-fixed": "#1a248e",
+              "error-container": "#fb5151",
+              "surface": "#f8f5ff",
+              "on-primary": "#f1f2ff",
+              "primary-dim": "#0046b9",
+              "surface-container": "#e7e6ff",
+              "on-surface": "#282b51",
+              "tertiary": "#8d3a8a",
+              "primary": "#0051d2",
+              "surface-container-highest": "#d9daff",
+              "surface-bright": "#f8f5ff",
+              "tertiary-fixed-dim": "#eb8de3",
+              "on-error-container": "#570008",
+              "outline-variant": "#a7aad7",
+              "secondary-dim": "#3a44aa",
+              "on-secondary": "#f3f1ff",
+              "on-primary-fixed": "#000000",
+              "inverse-on-surface": "#969ac6",
+              "secondary-fixed-dim": "#babfff",
+              "secondary-fixed": "#cbceff",
+              "on-tertiary-fixed": "#440046"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Manrope"],
+              "label": ["Manrope"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Manrope', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .aura-gradient {
+            background: linear-gradient(135deg, #0051d2 0%, #7a9dff 100%);
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface min-h-screen">
+<!-- Top Navigation Suppression: Not rendered for onboarding -->
+<main class="max-w-xl mx-auto px-6 pt-12 pb-32">
+<!-- Editorial Header -->
+<header class="mb-12">
+<div class="inline-flex items-center gap-2 mb-6">
+<span class="w-8 h-1 aura-gradient rounded-full"></span>
+<span class="text-primary font-bold tracking-widest text-xs uppercase">Step 1 of 2</span>
+</div>
+<h1 class="text-5xl font-extrabold text-on-surface tracking-tight leading-[1.1] mb-4">
+                Personalize your <br/><span class="text-primary">Daily Briefing</span>
+</h1>
+<p class="text-on-surface-variant text-lg leading-relaxed max-w-md">
+                Select the topics that matter most to you. We'll curate a sophisticated summary every morning.
+            </p>
+</header>
+<!-- Topic Selection: Bento Style -->
+<section class="mb-16">
+<div class="flex justify-between items-end mb-6">
+<h2 class="text-xl font-bold tracking-tight">Interest Keywords</h2>
+<span class="text-on-surface-variant text-sm font-medium">Select at least 3</span>
+</div>
+<div class="flex flex-wrap gap-3">
+<!-- Selected Chip -->
+<button class="flex items-center gap-2 bg-primary text-on-primary px-5 py-3 rounded-xl font-semibold transition-transform active:scale-95 shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-[20px]" data-icon="science">science</span>
+                    IT/Science
+                </button>
+<button class="flex items-center gap-2 bg-surface-container-highest text-on-surface-variant px-5 py-3 rounded-xl font-semibold hover:bg-surface-container-high transition-colors active:scale-95">
+<span class="material-symbols-outlined text-[20px]" data-icon="payments">payments</span>
+                    Finance
+                </button>
+<button class="flex items-center gap-2 bg-primary text-on-primary px-5 py-3 rounded-xl font-semibold transition-transform active:scale-95 shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-[20px]" data-icon="movie">movie</span>
+                    Entertainment
+                </button>
+<button class="flex items-center gap-2 bg-surface-container-highest text-on-surface-variant px-5 py-3 rounded-xl font-semibold hover:bg-surface-container-high transition-colors active:scale-95">
+<span class="material-symbols-outlined text-[20px]" data-icon="public">public</span>
+                    World News
+                </button>
+<button class="flex items-center gap-2 bg-surface-container-highest text-on-surface-variant px-5 py-3 rounded-xl font-semibold hover:bg-surface-container-high transition-colors active:scale-95">
+<span class="material-symbols-outlined text-[20px]" data-icon="sports_basketball">sports_basketball</span>
+                    Sports
+                </button>
+<button class="flex items-center gap-2 bg-surface-container-highest text-on-surface-variant px-5 py-3 rounded-xl font-semibold hover:bg-surface-container-high transition-colors active:scale-95">
+<span class="material-symbols-outlined text-[20px]" data-icon="health_and_safety">health_and_safety</span>
+                    Wellness
+                </button>
+<button class="flex items-center gap-2 bg-surface-container-highest text-on-surface-variant px-5 py-3 rounded-xl font-semibold hover:bg-surface-container-high transition-colors active:scale-95">
+<span class="material-symbols-outlined text-[20px]" data-icon="palette">palette</span>
+                    Arts &amp; Culture
+                </button>
+<!-- Add More Action -->
+<button class="flex items-center gap-2 border-2 border-dashed border-outline-variant/30 text-on-surface-variant px-5 py-3 rounded-xl font-semibold hover:border-primary/40 transition-colors">
+<span class="material-symbols-outlined text-[20px]" data-icon="add">add</span>
+                    Custom
+                </button>
+</div>
+</section>
+<!-- Notification Time Picker Section -->
+<section class="bg-surface-container-lowest p-8 rounded-[2rem] shadow-sm mb-12">
+<div class="flex items-start gap-6">
+<div class="bg-secondary-container p-4 rounded-2xl">
+<span class="material-symbols-outlined text-secondary text-3xl" data-icon="alarm">alarm</span>
+</div>
+<div class="flex-1">
+<h3 class="text-xl font-bold mb-1">Morning Schedule</h3>
+<p class="text-on-surface-variant text-sm mb-6">When would you like to receive your briefing?</p>
+<div class="flex items-center gap-4">
+<div class="flex-1 bg-surface-container-low rounded-2xl p-4 flex items-center justify-center gap-4 group hover:bg-surface-container-high transition-colors cursor-pointer">
+<span class="text-4xl font-extrabold tracking-tight text-on-surface">07</span>
+<span class="text-2xl font-light text-outline">:</span>
+<span class="text-4xl font-extrabold tracking-tight text-on-surface">30</span>
+<div class="ml-2 flex flex-col">
+<span class="text-xs font-bold text-primary">AM</span>
+<span class="text-xs font-bold text-outline-variant opacity-40">PM</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-4 rounded-2xl aspect-square flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors cursor-pointer">
+<span class="material-symbols-outlined" data-icon="edit">edit</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Preview Card: Editorial Style -->
+<div class="relative overflow-hidden rounded-3xl bg-inverse-surface p-8 group mb-12">
+<div class="absolute top-0 right-0 w-64 h-64 aura-gradient opacity-20 blur-[80px] -translate-y-1/2 translate-x-1/2"></div>
+<div class="relative z-10">
+<div class="flex items-center gap-2 mb-4">
+<span class="bg-primary/20 text-primary-fixed px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">Live Preview</span>
+</div>
+<h4 class="text-surface-bright text-2xl font-bold leading-tight mb-3">Your AI-curated summary is ready to be built.</h4>
+<p class="text-outline-variant text-sm leading-relaxed mb-6">"Good morning! Today's briefing covers major breakthroughs in Quantum Computing and a deep dive into the latest cinematic trends..."</p>
+<div class="flex -space-x-2">
+<div class="w-8 h-8 rounded-full border-2 border-inverse-surface bg-surface-container-highest flex items-center justify-center overflow-hidden">
+<img alt="Profile" class="w-full h-full object-cover" data-alt="close-up portrait of a professional man with a friendly expression in natural soft lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAtJKT7Ia8Nx5kkxKSRZmkX2qUmDZc3kikHer0VVtCH7fhlyP3le-WnUzFULqsYwh41OljXUiUQZ47jQIkI-qcCwR_2jomlio8Bh3Mfi2faG9bl-2LiDwe6GuzsK2uRPNjI6zb1BPo_PXfwfPC0qSyF-VnFOmdc0VmDgBnTvB5nbynswcP99xOu8KQtQkRipov2nv2k9kixS8X2hodkkLSbsQ7kALdjqdxY7VM9gtVvMykDCVJTbIHvPbML-DQvu6HsMrMUE7w5uqg"/>
+</div>
+<div class="w-8 h-8 rounded-full border-2 border-inverse-surface bg-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-xs" data-icon="bolt" data-weight="fill" style="font-variation-settings: 'FILL' 1;">bolt</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Fixed Action Bar -->
+<footer class="fixed bottom-0 left-0 w-full p-6 bg-surface/80 backdrop-blur-xl z-50">
+<div class="max-w-xl mx-auto">
+<button class="w-full aura-gradient text-on-primary py-5 rounded-2xl font-bold text-lg shadow-2xl shadow-primary/30 flex items-center justify-center gap-3 active:scale-95 duration-200 transition-transform">
+                Get Started
+                <span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+</button>
+<p class="text-center text-on-surface-variant text-[11px] font-medium mt-4 uppercase tracking-[0.2em] opacity-60">
+                By continuing, you agree to our Editorial Terms
+            </p>
+</div>
+</footer>
+</body></html>
