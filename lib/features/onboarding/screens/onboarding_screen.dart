@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../services/api_exception.dart';
+import '../../../services/keywords_api_service.dart';
 import '../../../shared/widgets/primary_button_widget.dart';
 import '../models/onboarding_preferences_model.dart';
 import '../widgets/keyword_chip_widget.dart';
@@ -15,6 +17,8 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
+  final KeywordsApiService _keywordsApiService = KeywordsApiService();
+
   static const List<String> _allKeywords = <String>[
     'IT/과학',
     '경제',
@@ -30,10 +34,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _hour = 8;
   int _minute = 0;
   bool _isAm = true;
+  bool _isSubmitting = false;
 
   @override
   Widget build(BuildContext context) {
-    final bool canContinue = _selectedKeywords.length >= 3;
+    final bool canContinue = _selectedKeywords.length == 3;
 
     return Scaffold(
       body: SafeArea(
@@ -94,9 +99,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               _PreviewCard(keywords: _selectedKeywords.toList()),
               const SizedBox(height: 20),
               PrimaryButtonWidget(
-                label: '시작하기',
+                label: _isSubmitting ? '저장 중...' : '시작하기',
                 icon: Icons.arrow_forward_rounded,
-                onPressed: canContinue ? _onContinue : null,
+                onPressed: canContinue && !_isSubmitting ? _onContinue : null,
               ),
             ],
           ),
@@ -110,12 +115,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       if (_selectedKeywords.contains(keyword)) {
         _selectedKeywords.remove(keyword);
       } else {
+        if (_selectedKeywords.length >= 3) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('키워드는 최대 3개까지 선택할 수 있습니다.')));
+          return;
+        }
         _selectedKeywords.add(keyword);
       }
     });
   }
 
-  void _onContinue() {
+  Future<void> _onContinue() async {
     final OnboardingPreferencesModel preferences = OnboardingPreferencesModel(
       keywords: _selectedKeywords.toList(),
       hour: _hour,
@@ -123,7 +134,31 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       isAm: _isAm,
     );
 
-    context.go('/briefing', extra: preferences);
+    setState(() => _isSubmitting = true);
+    try {
+      await _keywordsApiService.saveKeywords(preferences.keywords);
+      if (!mounted) {
+        return;
+      }
+      context.go('/briefing', extra: preferences);
+    } on ApiException catch (error) {
+      _showMessage(error.toString());
+    } catch (_) {
+      _showMessage('키워드 저장 중 오류가 발생했습니다.');
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 

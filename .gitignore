@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Backend local secrets/cache
+backend/.env
+backend/.env.bak
+backend/app/__pycache__/
