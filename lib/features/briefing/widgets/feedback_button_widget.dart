@@ -65,6 +65,7 @@ class _FeedbackOption extends StatelessWidget {
           color: selected
               ? AppColors.primary.withValues(alpha: 0.1)
               : AppColors.surfaceLow,
+          boxShadow: AppColors.panelShadow,
           border: Border.all(
             color: selected
                 ? AppColors.primary

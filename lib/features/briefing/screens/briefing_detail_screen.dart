@@ -146,6 +146,7 @@ class _BriefingDetailScreenState extends State<BriefingDetailScreen> {
             decoration: BoxDecoration(
               color: AppColors.surfaceLow,
               borderRadius: BorderRadius.circular(14),
+              boxShadow: AppColors.panelShadow,
             ),
             child: Row(
               children: <Widget>[

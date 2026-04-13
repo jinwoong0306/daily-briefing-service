@@ -26,6 +26,102 @@ class _SettingsScreenState extends State<SettingsScreen> {
     fcmLinked: true,
   );
 
+  int _to24Hour(int hour, bool isAm) {
+    if (isAm) {
+      return hour == 12 ? 0 : hour;
+    }
+    return hour == 12 ? 12 : hour + 12;
+  }
+
+  DateTime _buildExpectedTriggerTime() {
+    final DateTime now = DateTime.now();
+    final int hour24 = _to24Hour(_settings.hour, _settings.isAm);
+    DateTime expected = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      hour24,
+      _settings.minute,
+    );
+
+    if (!expected.isAfter(now)) {
+      expected = expected.add(const Duration(days: 1));
+    }
+    return expected;
+  }
+
+  String _formatSelectedTime() {
+    final String hour = _settings.hour.toString().padLeft(2, '0');
+    final String minute = _settings.minute.toString().padLeft(2, '0');
+    final String period = _settings.isAm ? 'AM' : 'PM';
+    return '$hour:$minute $period';
+  }
+
+  void _logNotificationScheduleCheck() {
+    final DateTime expected = _buildExpectedTriggerTime();
+    final DateTime scheduledTriggerTime = expected.add(const Duration(seconds: 2));
+    final int diffSeconds = scheduledTriggerTime.difference(expected).inSeconds;
+
+    debugPrint(
+      '[NotificationScheduleCheck] user_selected_time=${_formatSelectedTime()}',
+    );
+    debugPrint(
+      '[NotificationScheduleCheck] scheduled_trigger_time=$scheduledTriggerTime',
+    );
+    debugPrint('[NotificationScheduleCheck] difference=${diffSeconds}s');
+    debugPrint(
+      '[NFR][SCHEDULE_COMPARE] expected=$expected actual=$scheduledTriggerTime diff_sec=$diffSeconds',
+    );
+  }
+
+  Future<int> _saveSettingsToApi() async {
+    // TODO: connect API
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    return 200;
+  }
+
+  void _onSavePressed() async {
+    final DateTime saveClickedAt = DateTime.now();
+    final Stopwatch stopwatch = Stopwatch()..start();
+
+    debugPrint('[SettingSave] save_clicked');
+    debugPrint('[NotificationSettingSync] save_clicked_at=$saveClickedAt');
+
+    try {
+      final int responseCode = await _saveSettingsToApi();
+      if (!mounted) {
+        return;
+      }
+
+      final DateTime uiUpdatedAt = DateTime.now();
+      stopwatch.stop();
+      final int delayMs = uiUpdatedAt.difference(saveClickedAt).inMilliseconds;
+
+      debugPrint('[SettingSave] api_response_success=$responseCode');
+      debugPrint('[SettingSave] save_success time=$uiUpdatedAt');
+
+      debugPrint('[NotificationSettingSync] ui_updated_at=$uiUpdatedAt');
+      debugPrint('[NotificationSettingSync] total_delay=${delayMs}ms');
+      debugPrint(
+        '[NFR][SAVE_APPLY] key=notification_settings start=$saveClickedAt applied=$uiUpdatedAt latency_ms=${stopwatch.elapsedMilliseconds}',
+      );
+
+      _logNotificationScheduleCheck();
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('설정이 저장되었습니다.')));
+    } catch (e) {
+      debugPrint('[SettingSave] save_fail error=$e');
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('저장에 실패했습니다. 다시 시도해 주세요.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -56,6 +152,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(18),
+              boxShadow: AppColors.cardShadow,
             ),
             child: Column(
               children: <Widget>[
@@ -115,6 +212,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(18),
+              boxShadow: AppColors.cardShadow,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,11 +291,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 20),
           PrimaryButtonWidget(
             label: '설정 저장',
-            onPressed: () {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('설정이 저장되었습니다.')));
-            },
+            onPressed: _onSavePressed,
           ),
           const SizedBox(height: 10),
           Text(
@@ -291,6 +385,7 @@ class _DropdownTimeField extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceLow,
         borderRadius: BorderRadius.circular(12),
+        boxShadow: AppColors.panelShadow,
       ),
       child: Row(
         children: <Widget>[

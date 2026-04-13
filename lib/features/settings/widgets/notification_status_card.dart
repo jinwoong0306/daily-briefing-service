@@ -22,6 +22,7 @@ class NotificationStatusCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(18),
+        boxShadow: AppColors.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -71,6 +72,7 @@ class _StatusRow extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.surfaceLow,
               borderRadius: BorderRadius.circular(999),
+              boxShadow: AppColors.panelShadow,
             ),
             child: Text(value, style: Theme.of(context).textTheme.labelLarge),
           ),

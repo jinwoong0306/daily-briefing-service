@@ -25,13 +25,7 @@ class BriefingCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(24),
-          boxShadow: const <BoxShadow>[
-            BoxShadow(
-              color: Color(0x14282B51),
-              blurRadius: 24,
-              offset: Offset(0, 8),
-            ),
-          ],
+          boxShadow: AppColors.cardShadow,
         ),
         padding: const EdgeInsets.all(16),
         child: Column(

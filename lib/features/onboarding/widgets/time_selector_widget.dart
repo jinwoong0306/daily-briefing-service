@@ -26,6 +26,7 @@ class TimeSelectorWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
+        boxShadow: AppColors.cardShadow,
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -88,6 +89,7 @@ class _NumberPickerCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceLow,
         borderRadius: BorderRadius.circular(14),
+        boxShadow: AppColors.panelShadow,
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -137,6 +139,7 @@ class _PeriodSwitch extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceLow,
         borderRadius: BorderRadius.circular(14),
+        boxShadow: AppColors.panelShadow,
       ),
       child: Column(
         children: <Widget>[
