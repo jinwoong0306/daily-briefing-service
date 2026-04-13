@@ -1,0 +1,72 @@
+name: Project CI
+
+on:
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  # 백엔드 검사 (Lint)
+  backend-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Detect backend
+        id: detect_backend
+        run: |
+          if [ -f backend/requirements.txt ]; then
+            echo "present=true" >> $GITHUB_OUTPUT
+          else
+            echo "present=false" >> $GITHUB_OUTPUT
+            echo "backend/requirements.txt not found; skipping backend checks."
+          fi
+
+      - name: Set up Python
+        if: steps.detect_backend.outputs.present == 'true'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        if: steps.detect_backend.outputs.present == 'true'
+        run: |
+          pip install -r backend/requirements.txt
+          pip install flake8
+
+      - name: Lint with flake8
+        if: steps.detect_backend.outputs.present == 'true'
+        run: flake8 backend/ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+  # 프론트엔드 검사 (Build Check)
+  frontend-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Detect frontend
+        id: detect_frontend
+        run: |
+          if [ -f frontend/package.json ]; then
+            echo "present=true" >> $GITHUB_OUTPUT
+          else
+            echo "present=false" >> $GITHUB_OUTPUT
+            echo "frontend/package.json not found; skipping frontend checks."
+          fi
+
+      - name: Set up Node
+        if: steps.detect_frontend.outputs.present == 'true'
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        if: steps.detect_frontend.outputs.present == 'true'
+        run: |
+          cd frontend
+          npm install
+
+      - name: Build Check
+        if: steps.detect_frontend.outputs.present == 'true'
+        run: |
+          cd frontend
+          npm run build
