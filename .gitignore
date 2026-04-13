@@ -28,13 +28,14 @@ migrate_working_dir/
 venv/
 env/
 
-# Flutter platform folders (development only)
-/android/
-/ios/
-/windows/
-/macos/
-/linux/
-/web/
+# Flutter platform folders (development only - in apps/mobile)
+/apps/mobile/android/
+/apps/mobile/ios/
+/apps/mobile/windows/
+/apps/mobile/macos/
+/apps/mobile/linux/
+/apps/mobile/web/
+/apps/mobile/build/
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -43,7 +44,6 @@ env/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
 /coverage/
 
 # Symbolication related
