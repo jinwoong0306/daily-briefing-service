@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Daily Briefing</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "secondary": "#585c80",
+                        "secondary-fixed": "#e0e0ff",
+                        "surface-container-highest": "#e2e2e2",
+                        "surface-dim": "#dadada",
+                        "on-secondary-fixed-variant": "#414467",
+                        "on-background": "#1a1c1c",
+                        "primary-fixed-dim": "#bdc2ff",
+                        "tertiary-container": "#5c1800",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-container": "#d2d4ff",
+                        "on-tertiary-container": "#e17c5a",
+                        "surface-bright": "#f9f9f9",
+                        "primary-container": "#1a237e",
+                        "inverse-primary": "#bdc2ff",
+                        "surface-container-low": "#f3f3f3",
+                        "tertiary-fixed": "#ffdbd0",
+                        "outline-variant": "#c6c5d4",
+                        "secondary-fixed-dim": "#c1c3ed",
+                        "surface-variant": "#e2e2e2",
+                        "inverse-on-surface": "#f1f1f1",
+                        "primary": "#000666",
+                        "on-tertiary-fixed-variant": "#7b2e12",
+                        "on-tertiary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "on-surface-variant": "#454652",
+                        "outline": "#767683",
+                        "tertiary-fixed-dim": "#ffb59d",
+                        "background": "#f9f9f9",
+                        "on-secondary-fixed": "#151839",
+                        "on-secondary-container": "#575b7f",
+                        "surface-container-high": "#e8e8e8",
+                        "error-container": "#ffdad6",
+                        "on-primary-fixed": "#000767",
+                        "on-secondary": "#ffffff",
+                        "on-primary-container": "#8690ee",
+                        "surface": "#f9f9f9",
+                        "surface-container": "#eeeeee",
+                        "on-surface": "#1a1c1c",
+                        "primary-fixed": "#e0e0ff",
+                        "on-error": "#ffffff",
+                        "tertiary": "#380b00",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-fixed": "#390c00",
+                        "inverse-surface": "#2f3131",
+                        "surface-tint": "#4c56af",
+                        "error": "#ba1a1a",
+                        "on-primary-fixed-variant": "#343d96"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #f9f9f9;
+            color: #1a1c1c;
+            -webkit-font-smoothing: antialiased;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body selection:bg-primary-container selection:text-white">
+<!-- TopAppBar -->
+<header class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl docked full-width top-0 z-50 sticky">
+<div class="flex justify-between items-center px-8 py-6 w-full max-w-7xl mx-auto">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" data-icon="calendar_today">calendar_today</span>
+<h1 class="font-['Manrope'] font-bold text-2xl tracking-tight text-[#1A237E]">Good Morning</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="hover:bg-slate-100/50 p-2 rounded-full transition-colors active:scale-95 duration-200">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="search">search</span>
+</button>
+<div class="w-10 h-10 rounded-full bg-surface-container-high overflow-hidden border border-outline-variant/15">
+<img alt="Profile" class="w-full h-full object-cover" data-alt="portrait of a professional male editor in a bright minimalist office setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCeGz8zrLkqjUBwK42IKa4TjiK6R_Aut8EkjfVp2LHPdi5v2KQBtpddIqtJxLcU1p84j60p9dzhnBsc_Yz9JvjzQk-9dqjt3vHfXvyTCj3zU3kQHJYNR3tFTztTh8geJT0I0TlsF7zygCkerk9EjHLb0Brs2GmkIblZfmImppR-Xx-DbUvDTCxH393t7JQITimc3qDChvlmsey9Ep5_GnGhBcmysmAbV_qr3zdzZxXmD9KQIz4tDLHQ1_h3o7uQtsOIJ7zc-R1vOM8"/>
+</div>
+</div>
+</div>
+</header>
+<main class="max-w-7xl mx-auto px-8 pt-6 pb-32">
+<!-- Hero Greeting & Subtitle -->
+<section class="mb-12">
+<p class="font-label text-primary font-semibold tracking-[0.1em] text-[11px] mb-2 uppercase">Monday, October 23</p>
+<h2 class="font-headline font-extrabold text-4xl md:text-5xl text-on-surface tracking-tight leading-tight max-w-2xl">
+                Here's your <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary-container">morning briefing.</span>
+</h2>
+</section>
+<!-- Category Tabs -->
+<nav class="flex gap-3 mb-10 overflow-x-auto pb-4 no-scrollbar">
+<button class="px-8 py-3 bg-primary text-white rounded-full font-semibold text-sm shadow-lg shadow-primary/20">All</button>
+<button class="px-8 py-3 bg-surface-container-high text-on-surface-variant rounded-full font-medium text-sm hover:bg-surface-container-highest transition-colors">IT</button>
+<button class="px-8 py-3 bg-surface-container-high text-on-surface-variant rounded-full font-medium text-sm hover:bg-surface-container-highest transition-colors">Economy</button>
+<button class="px-8 py-3 bg-surface-container-high text-on-surface-variant rounded-full font-medium text-sm hover:bg-surface-container-highest transition-colors">Science</button>
+<button class="px-8 py-3 bg-surface-container-high text-on-surface-variant rounded-full font-medium text-sm hover:bg-surface-container-highest transition-colors">Design</button>
+</nav>
+<!-- Feed Cards -->
+<div class="grid grid-cols-1 md:grid-cols-1 gap-12">
+<!-- Card 1: IT -->
+<article class="group bg-surface-container-lowest rounded-[32px] overflow-hidden transition-all duration-300 hover:shadow-[0_24px_48px_rgba(26,28,28,0.06)] flex flex-col md:flex-row border border-outline-variant/10">
+<div class="md:w-1/3 h-64 md:h-auto relative overflow-hidden">
+<img alt="Apple Macbook Pro" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="dramatic product photography of a sleek space black macbook pro on a dark reflective surface with cold blue rim lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNUgXxiArF4RraBbrXUEI5nvTGb6HzfoMRLLw06TSV1O8dUCn86Mi27nrRZT1LgcVQHRvXmzYK0egXI5uQRnhM0xQfBPITmVt2ia0qXLN42aSPzyT50yIvgMD5vOZaYalCXRtHo338W2-hW7h1aPQIdRg1QJLjoukWdv10GywagU5HhRlM_6aoweWW9AalVvh1D6fvSvz9Ox-KWv7YJnixQTAHAwn6QqaRblEVPrpAwGt65gJt4Ygc9ozjSvAcK1x3gNbrxqox1C4"/>
+<div class="absolute top-6 left-6 px-4 py-1.5 bg-primary/90 backdrop-blur-md text-white rounded-full text-[10px] font-bold tracking-widest uppercase">IT</div>
+</div>
+<div class="p-10 md:w-2/3 flex flex-col justify-between">
+<div>
+<h3 class="font-headline font-bold text-2xl md:text-3xl text-on-surface mb-6 leading-tight group-hover:text-primary transition-colors">
+                            Apple announces new MacBook Pro with M3 Max chip
+                        </h3>
+<div class="space-y-4 mb-8">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary-container text-xl mt-0.5" data-icon="auto_awesome">auto_awesome</span>
+<p class="text-on-surface-variant leading-relaxed">New M3 Max chip designed for professional performance with high efficiency.</p>
+</div>
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary-container text-xl mt-0.5" data-icon="auto_awesome">auto_awesome</span>
+<p class="text-on-surface-variant leading-relaxed">Stunning space black finish with an innovative fingerprint-resistant seal.</p>
+</div>
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary-container text-xl mt-0.5" data-icon="auto_awesome">auto_awesome</span>
+<p class="text-on-surface-variant leading-relaxed">Official availability starts next week at authorized retailers globally.</p>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between pt-6 border-t border-surface-container-high">
+<button class="flex items-center gap-2 text-primary font-bold text-sm tracking-tight hover:underline">
+                            Read Original
+                            <span class="material-symbols-outlined text-lg" data-icon="arrow_outward">arrow_outward</span>
+</button>
+<div class="flex items-center gap-2">
+<button class="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-full transition-colors active:scale-90">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="thumb_up">thumb_up</span>
+</button>
+<button class="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-full transition-colors active:scale-90">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="thumb_down">thumb_down</span>
+</button>
+</div>
+</div>
+</div>
+</article>
+<!-- Card 2: Economy -->
+<article class="group bg-surface-container-lowest rounded-[32px] overflow-hidden transition-all duration-300 hover:shadow-[0_24px_48px_rgba(26,28,28,0.06)] flex flex-col md:flex-row border border-outline-variant/10">
+<div class="md:w-1/3 h-64 md:h-auto relative overflow-hidden">
+<img alt="Market Trends" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="modern glass stock exchange building reflecting a blue sky with rising glowing graph lines overlaid digitally" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCusy3TZzfP02N3APeQlqHXmSa_9z-jcbwu02HHdRyIunrYxB2Vui2X0UDpfbP4NXNRsT1U1OHAFw3jVizWo78frV1oTOq653fvrKqWf-YcvST2V3tBJXqG_rb4y7qLDpwkmTLXCeifiWIJQYEfitRFlgdBOYtFbkM8OoauMIRFFLc-5ysNmqOAOCd1SR0pfa_Qa6EM4-9Y8U3FFXQDtb2vwucebA_Q5EFF-zSYF7xwShxFyObpyQw2zaOUSiWjl6kqGvvd_gw4Oys"/>
+<div class="absolute top-6 left-6 px-4 py-1.5 bg-primary/90 backdrop-blur-md text-white rounded-full text-[10px] font-bold tracking-widest uppercase">Economy</div>
+</div>
+<div class="p-10 md:w-2/3 flex flex-col justify-between">
+<div>
+<h3 class="font-headline font-bold text-2xl md:text-3xl text-on-surface mb-6 leading-tight group-hover:text-primary transition-colors">
+                            Global Markets respond to cooling inflation data
+                        </h3>
+<div class="space-y-4 mb-8">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary-container text-xl mt-0.5" data-icon="auto_awesome">auto_awesome</span>
+<p class="text-on-surface-variant leading-relaxed">Consumer price indices show a surprising dip in core volatility sectors.</p>
+</div>
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary-container text-xl mt-0.5" data-icon="auto_awesome">auto_awesome</span>
+<p class="text-on-surface-variant leading-relaxed">Central banks signal a potential pause in aggressive rate hiking cycles.</p>
+</div>
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary-container text-xl mt-0.5" data-icon="auto_awesome">auto_awesome</span>
+<p class="text-on-surface-variant leading-relaxed">Equities in tech and green energy sectors lead the morning rally.</p>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between pt-6 border-t border-surface-container-high">
+<button class="flex items-center gap-2 text-primary font-bold text-sm tracking-tight hover:underline">
+                            Read Original
+                            <span class="material-symbols-outlined text-lg" data-icon="arrow_outward">arrow_outward</span>
+</button>
+<div class="flex items-center gap-2">
+<button class="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-full transition-colors active:scale-90">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="thumb_up">thumb_up</span>
+</button>
+<button class="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-full transition-colors active:scale-90">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="thumb_down">thumb_down</span>
+</button>
+</div>
+</div>
+</div>
+</article>
+<!-- Card 3: IT/Science -->
+<article class="group bg-surface-container-lowest rounded-[32px] overflow-hidden transition-all duration-300 hover:shadow-[0_24px_48px_rgba(26,28,28,0.06)] flex flex-col md:flex-row border border-outline-variant/10">
+<div class="md:w-1/3 h-64 md:h-auto relative overflow-hidden">
+<img alt="AI Neural Networks" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="abstract artistic visualization of neural network connections glowing with deep blue and white light on a dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBMm3-RR2L-J1RUDL64gpGkytkUFw8bUUDOsjAlgE9C65uHoWlyqrnHSElBAi6HkRWG0s3U10jfmdTtQbzjMYaBVioXPh8HGc5Ys5WoKUcSYlBs3e2g7S9r_MIwQcXSYfgd1-uWnHB-iC5DtqDacj3EeUzxmLnGZsKacC66uWXT1ll0o_sbuDdaUUHTxnNl9xeDKSNm4VEmuARshAN4olzzpBakUhUGTtzzp27BFTmy-ff9DlqKRy-OzyNjj1LMJEqBuaOxpsxlqxw"/>
+<div class="absolute top-6 left-6 px-4 py-1.5 bg-primary/90 backdrop-blur-md text-white rounded-full text-[10px] font-bold tracking-widest uppercase">IT</div>
+</div>
+<div class="p-10 md:w-2/3 flex flex-col justify-between">
+<div>
+<h3 class="font-headline font-bold text-2xl md:text-3xl text-on-surface mb-6 leading-tight group-hover:text-primary transition-colors">
+                            Next-gen AI models focus on energy efficiency
+                        </h3>
+<div class="space-y-4 mb-8">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary-container text-xl mt-0.5" data-icon="auto_awesome">auto_awesome</span>
+<p class="text-on-surface-variant leading-relaxed">Researchers pivot from size-first scaling to architecture-first efficiency.</p>
+</div>
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary-container text-xl mt-0.5" data-icon="auto_awesome">auto_awesome</span>
+<p class="text-on-surface-variant leading-relaxed">Small Language Models (SLMs) achieve 95% performance of large counterparts.</p>
+</div>
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary-container text-xl mt-0.5" data-icon="auto_awesome">auto_awesome</span>
+<p class="text-on-surface-variant leading-relaxed">New hardware chips optimized specifically for inference on mobile devices.</p>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between pt-6 border-t border-surface-container-high">
+<button class="flex items-center gap-2 text-primary font-bold text-sm tracking-tight hover:underline">
+                            Read Original
+                            <span class="material-symbols-outlined text-lg" data-icon="arrow_outward">arrow_outward</span>
+</button>
+<div class="flex items-center gap-2">
+<button class="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-full transition-colors active:scale-90">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="thumb_up">thumb_up</span>
+</button>
+<button class="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-full transition-colors active:scale-90">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="thumb_down">thumb_down</span>
+</button>
+</div>
+</div>
+</div>
+</article>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-6 pb-8 pt-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-[0_-8px_24px_rgba(26,28,28,0.06)] rounded-t-[24px]">
+<div class="flex flex-col items-center justify-center bg-gradient-to-br from-[#000666] to-[#1A237E] text-white rounded-2xl p-3 shadow-lg active:scale-90 duration-200 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="home_app_logo" style="font-variation-settings: 'FILL' 1;">home_app_logo</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 p-3 hover:text-[#1A237E] transition-all active:scale-90 duration-200 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="explore">explore</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 p-3 hover:text-[#1A237E] transition-all active:scale-90 duration-200 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="bookmark">bookmark</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 p-3 hover:text-[#1A237E] transition-all active:scale-90 duration-200 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</div>
+</nav>
+</body></html>
