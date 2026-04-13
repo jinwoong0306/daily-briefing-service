@@ -1,11 +1,21 @@
+<<<<<<< HEAD
+# news
+=======
 # daily-briefing-service
 
 ☀️ **Daily Briefing: 나만의 아침 뉴스 비서**
 
 매일 아침 08:00, 밤사이 핵심 뉴스를 AI가 요약하여 전달하는 스마트 뉴스 큐레이션 서비스
+>>>>>>> develop
 
----
+Flutter 기반 Daily Briefing 앱입니다.
 
+<<<<<<< HEAD
+## Android 에뮬레이터 실행 가이드
+
+### 1. 환경 확인
+아래 명령으로 Flutter/Android SDK 상태를 먼저 확인합니다.
+=======
 ## 👥 팀원 및 역할 (Team Roles)
 - 이종서: Team Leader / Backend (뉴스 수집 파이프라인, API 설계)
 - 길현수: PM & AI Pipeline (LLM 프롬프트 엔지니어링, 요약 로직)
@@ -75,9 +85,22 @@ GitHub 관련 설정은 **모두 `.github/` 아래**에 모읍니다.
 ### 4) Dependabot (선택)
 의존성 자동 업데이트가 필요하면 추가합니다.
 - 위치: `.github/dependabot.yml`
+>>>>>>> develop
 
----
+```powershell
+flutter doctor -v
+```
 
+<<<<<<< HEAD
+### 2. 에뮬레이터 목록 확인
+
+```powershell
+flutter emulators
+```
+
+### 3. 에뮬레이터 실행
+`<emulator_id>`를 원하는 ID로 바꿔 실행합니다.
+=======
 ## 🌿 브랜치 전략 (Branch Strategy)
 효율적인 협업을 위해 아래 규칙을 준수합니다.
 
@@ -112,9 +135,40 @@ hotfix/login-crash    →  main  (+ develop backport)
   - `[Feat]` 기능추가
   - `[Fix]` 버그수정
   - `[Docs]` 문서변경
+>>>>>>> develop
 
----
+```powershell
+flutter emulators --launch <emulator_id>
+```
 
+<<<<<<< HEAD
+예시:
+
+```powershell
+flutter emulators --launch Pixel_9_ASCII
+```
+
+### 4. 디바이스 연결 확인
+`device` 상태로 보여야 정상입니다.
+
+```powershell
+adb devices -l
+flutter devices
+```
+
+### 5. 앱 실행
+프로젝트 루트(`pubspec.yaml` 위치)에서 실행합니다.
+
+```powershell
+flutter pub get
+flutter run -d emulator-5554
+```
+
+## 트러블슈팅
+
+### `adb devices`에 `offline`으로 나오는 경우
+
+=======
 ## ⚙️ 초기 설정 (Environment)
 로컬 개발 시 프로젝트 루트에 `.env` 파일을 만들고 아래 형식을 참조하세요.
 (※ 실제 접속 키는 공유 보안 채널로 전달)
@@ -139,10 +193,23 @@ flutter run
 ```
 
 ### 트러블슈팅: `adb devices`에 `offline`으로 나오는 경우
+>>>>>>> develop
 ```powershell
 adb kill-server
 adb start-server
 Get-Process -Name emulator,qemu-system-x86_64,adb -ErrorAction SilentlyContinue | Stop-Process -Force
+<<<<<<< HEAD
+flutter emulators --launch <emulator_id>
+adb devices -l
+```
+
+### Windows에서 Kotlin daemon 경로 오류가 나는 경우
+사용자 경로 이슈가 있으면 Gradle 캐시 경로를 ASCII 경로로 지정한 뒤 실행합니다.
+
+```powershell
+$env:GRADLE_USER_HOME='C:\gradle-cache'
+flutter run -d emulator-5554
+=======
 adb devices -l
 ```
 
@@ -150,4 +217,5 @@ adb devices -l
 ```powershell
 $env:GRADLE_USER_HOME='C:\gradle-cache'
 flutter run
+>>>>>>> develop
 ```

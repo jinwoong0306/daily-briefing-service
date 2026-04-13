@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Daily Briefing - Join Now</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-primary-fixed": "#00174a",
+              "on-secondary": "#ffffff",
+              "primary-fixed-dim": "#b3c5ff",
+              "inverse-surface": "#2f3131",
+              "outline": "#737687",
+              "on-tertiary-container": "#fff4f0",
+              "on-error": "#ffffff",
+              "on-secondary-container": "#294487",
+              "on-primary-fixed-variant": "#003ea6",
+              "on-tertiary-fixed": "#390c00",
+              "surface-container-lowest": "#ffffff",
+              "on-secondary-fixed-variant": "#294387",
+              "surface-container-high": "#e8e8e8",
+              "surface-tint": "#0054d8",
+              "surface-container-low": "#f3f3f4",
+              "background": "#f9f9f9",
+              "on-error-container": "#93000a",
+              "tertiary": "#a03200",
+              "on-tertiary-fixed-variant": "#832700",
+              "secondary": "#425ba0",
+              "secondary-fixed": "#dbe1ff",
+              "tertiary-fixed-dim": "#ffb59c",
+              "primary-fixed": "#dbe1ff",
+              "primary": "#004ecb",
+              "outline-variant": "#c2c6d8",
+              "on-background": "#1a1c1c",
+              "tertiary-container": "#ca4101",
+              "error-container": "#ffdad6",
+              "on-tertiary": "#ffffff",
+              "on-surface-variant": "#424656",
+              "on-primary": "#ffffff",
+              "inverse-on-surface": "#f0f1f1",
+              "surface-container": "#eeeeee",
+              "surface-bright": "#f9f9f9",
+              "on-surface": "#1a1c1c",
+              "surface-container-highest": "#e2e2e2",
+              "on-secondary-fixed": "#00174a",
+              "inverse-primary": "#b3c5ff",
+              "surface": "#f9f9f9",
+              "tertiary-fixed": "#ffdbd0",
+              "surface-variant": "#e2e2e2",
+              "on-primary-container": "#f5f5ff",
+              "primary-container": "#0064ff",
+              "secondary-fixed-dim": "#b3c5ff",
+              "secondary-container": "#9bb4ff",
+              "error": "#ba1a1a",
+              "surface-dim": "#dadada"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Manrope"],
+              "label": ["Manrope"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Manrope', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface-container-lowest text-on-surface min-h-screen flex flex-col">
+<!-- Top Navigation Anchor (Suppressed Shell for Linear Flow) -->
+<header class="w-full top-0 z-50 flex items-center justify-between px-6 py-6">
+<div class="flex items-center gap-2">
+<span class="text-primary-container material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">wb_sunny</span>
+<span class="text-xl font-bold tracking-tighter text-on-surface">Daily Briefing</span>
+</div>
+<button class="text-on-surface-variant text-sm font-medium hover:text-primary transition-colors">
+            Help
+        </button>
+</header>
+<main class="flex-grow flex flex-col px-8 pt-12 pb-16 max-w-md mx-auto w-full">
+<!-- Editorial Headline -->
+<div class="mb-12">
+<h1 class="font-headline text-[2.75rem] leading-tight font-extrabold tracking-tight text-on-surface mb-3">
+                Stay Informed.
+            </h1>
+<p class="text-on-surface-variant font-body text-lg leading-relaxed">
+                Join our community for a curated, quiet, and essential news experience every morning.
+            </p>
+</div>
+<!-- Sign Up Form -->
+<div class="space-y-5">
+<div class="space-y-1.5">
+<label class="text-[0.75rem] font-bold uppercase tracking-widest text-on-surface-variant px-1" for="name">Full Name</label>
+<input class="w-full bg-surface-container-low border-none rounded-xl px-4 py-4 text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary-container transition-all outline-none" id="name" placeholder="Enter your name" type="text"/>
+</div>
+<div class="space-y-1.5">
+<label class="text-[0.75rem] font-bold uppercase tracking-widest text-on-surface-variant px-1" for="email">Email Address</label>
+<input class="w-full bg-surface-container-low border-none rounded-xl px-4 py-4 text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary-container transition-all outline-none" id="email" placeholder="name@company.com" type="email"/>
+</div>
+<div class="space-y-1.5">
+<label class="text-[0.75rem] font-bold uppercase tracking-widest text-on-surface-variant px-1" for="password">Password</label>
+<div class="relative">
+<input class="w-full bg-surface-container-low border-none rounded-xl px-4 py-4 text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary-container transition-all outline-none" id="password" placeholder="Create a password" type="password"/>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant">
+<span class="material-symbols-outlined text-[20px]">visibility</span>
+</button>
+</div>
+</div>
+<button class="w-full bg-primary-container text-on-primary font-bold py-4 rounded-full mt-4 hover:bg-on-primary-fixed-variant transition-all transform active:scale-[0.98] shadow-lg shadow-primary-container/20">
+                Create Account
+            </button>
+</div>
+<!-- Divider with Text -->
+<div class="relative my-10 flex items-center justify-center">
+<div class="absolute inset-0 flex items-center">
+<div class="w-full border-t border-outline-variant/30"></div>
+</div>
+<span class="relative bg-surface-container-lowest px-4 text-xs font-bold uppercase tracking-widest text-outline">or continue with</span>
+</div>
+<!-- Social Buttons -->
+<div class="grid grid-cols-2 gap-4">
+<button class="flex items-center justify-center gap-2 border border-outline-variant/40 rounded-full py-3.5 hover:bg-surface-container-low transition-colors active:scale-95 duration-150">
+<img alt="" class="w-4 h-4 grayscale opacity-70" data-alt="minimalist google icon logo with clean white space" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAoL-P8ZkSln8p1B3ydt8V-W7ihC1Q7NBwkIMMIOBRxU9yPrAvw2jn3mf5r5KDJ_A-CEwOVlLLWTwVRRy26Idw-I723Fj-K25Q4QxIM6u7jP5krvukeUWKI_0j08mVmSPBQ5nnYf3v1D2GM41Yk_ynO229DSiu6VpJhyK-dl7b0g7o3lNkHcwyZKlZApEtumiHjNtxHpAtS1cohTkcaT9IZPEsayM_LdkPsL0NtxdcmNxqQ2riQqCJFpTSOhCTPMid7iaJ-zhue7dg"/>
+<span class="text-sm font-semibold text-on-surface">Google</span>
+</button>
+<button class="flex items-center justify-center gap-2 border border-outline-variant/40 rounded-full py-3.5 hover:bg-surface-container-low transition-colors active:scale-95 duration-150">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">ios</span>
+<span class="text-sm font-semibold text-on-surface">Apple</span>
+</button>
+</div>
+<!-- Bottom Redirect -->
+<div class="mt-auto pt-10 text-center">
+<p class="text-on-surface-variant text-sm font-medium">
+                Already have an account? 
+                <a class="text-primary font-bold ml-1 hover:underline" href="#">Log in</a>
+</p>
+</div>
+</main>
+<!-- Visual Polish: Soft Ambient Texture -->
+<div class="fixed bottom-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-tertiary opacity-30"></div>
+<!-- Hidden Decorative Image for Context -->
+<div class="hidden">
+<img alt="decoration" data-alt="abstract minimalist background with soft blue gradients and clean geometric lines on a white canvas" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCftPF8ZRm9cwUenLkpyTAvI5NKcPMMq50hZEIl7eG2rt7AUUdsxKkllFEnmo57Kf17cW3zXXBC7W3PlEQ3TJBN384PGs-p8LmmF1x0M4HM5mK6TG2c5FBEYphdYgqlQY8S8ki8mQ7u10r2W9P5a4uDIrj-NVQ1xo2UgGXRfvqJJbAE7rYO-7UXSJG9fOLNk5uQP95nyPJxKOUIMdX7o0YKT6T8RVcPDaIv72Ew1z7jbYDHR1quRcnD867IsCQgjCRPbLR7GTScKIg"/>
+</div>
+</body></html>
