@@ -1,0 +1,43 @@
+name: Project CI
+
+on:
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  # 백엔드 검사 (Lint)
+  backend-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          # backend 폴더 안에 requirements.txt가 있는지 확인하세요
+          pip install -r backend/requirements.txt
+          pip install flake8
+      - name: Lint with flake8
+        # 문법 오류나 정의되지 않은 변수 위주로 검사
+        run: flake8 backend/ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+  # 프론트엔드 검사 (Build Check)
+  frontend-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm install
+      - name: Build Check
+        # 빌드가 성공하는지 확인 (가장 확실한 테스트)
+        run: |
+          cd frontend
+          npm run build
