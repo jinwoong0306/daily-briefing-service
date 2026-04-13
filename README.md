@@ -27,25 +27,27 @@
 daily-briefing-service/ (Root)
 ├── .github/
 │   └── workflows/
-│       └── ci.yml            # 자동화(CI) 설정
-├── backend/                  # FastAPI 백엔드 관련 모든 것
-│   ├── app/                  # API 비즈니스 로직
-│   ├── crawler/              # 뉴스 수집 스크립트
-│   ├── tests/                # 백엔드 테스트 코드
-│   └── requirements.txt      # 백엔드 라이브러리 목록 (반드시 이 위치!)
-├── frontend/                 # Next.js 프론트엔드 관련 모든 것
-│   ├── src/                  # 리액트 컴포넌트 및 페이지
-│   ├── public/               # 이미지 등 정적 자산
-│   └── package.json          # 프론트엔드 라이브러리 목록 (반드시 이 위치!)
-├── frontend/mobile/          # (현재) 기존 Flutter 앱 소스
-├── infra/                    # 인프라 및 데이터베이스 설계
-│   ├── supabase/             # SQL 테이블 생성 스크립트 등
-│   └── docs/                 # DB 스키마/인프라 문서 및 자료
-├── .env.example              # 환경변수 샘플 파일
-└── README.md                 # 프로젝트 메인 설명서
+│       └── ci.yml                 # 자동화(CI) 설정
+├── backend/                       # FastAPI 백엔드 관련 모든 것
+│   ├── app/                       # API 비즈니스 로직
+│   ├── crawler/                   # 뉴스 수집 스크립트
+│   ├── tests/                     # 백엔드 테스트 코드
+│   └── requirements.txt           # 백엔드 라이브러리 목록 (이 위치)
+├── frontend/                      # 프론트엔드(웹/모바일/디자인)
+│   ├── src/                       # (Web) 소스 코드
+│   ├── public/                    # (Web) 정적 자산
+│   ├── package.json               # (Web) 의존성 (추가/정리 시 이 위치)
+│   ├── mobile/                    # Flutter 앱 소스
+│   └── design/                    # 디자인 산출물
+│       └── ui/                    # UI 산출물 (이전: infra/docs/ui)
+├── infra/                         # 인프라 및 데이터베이스 설계
+│   ├── supabase/                  # SQL/스키마 스크립트
+│   └── docs/                      # 인프라/DB 문서 (디자인 제외)
+├── .env.example                   # 환경변수 샘플 파일
+└── README.md                      # 프로젝트 메인 설명서
 ```
 
-> 참고: 현재 레포에는 Flutter 앱이 이미 존재하므로 `frontend/mobile/` 아래로 정리하여 유지합니다. Next.js는 `frontend/`에 추가 예정입니다.
+> 참고: Flutter 앱은 `frontend/mobile/`, 디자인 산출물은 `frontend/design/ui/`에서 관리합니다.
 
 ---
 
