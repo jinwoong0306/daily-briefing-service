@@ -1,155 +1,210 @@
-# daily-briefing-service
+# Daily Briefing Service
 
-☀️ **Daily Briefing: 나만의 아침 뉴스 비서**
+뉴스 Daily Briefing을 제공하는 모노레포 기반 멀티-플랫폼 서비스입니다.
 
-매일 아침 08:00, 밤사이 핵심 뉴스를 AI가 요약하여 전달하는 스마트 뉴스 큐레이션 서비스
+## 📁 프로젝트 구조
 
----
+이 프로젝트는 모노레포(Monorepo) 구조로 관리되며, 각 부분이 독립적으로 개발되고 통합됩니다.
 
-## 👥 팀원 및 역할 (Team Roles)
-- 이종서: Team Leader / Backend (뉴스 수집 파이프라인, API 설계)
-- 길현수: PM & AI Pipeline (LLM 프롬프트 엔지니어링, 요약 로직)
-- 박재영: Frontend & UI/UX (Next.js 웹 서비스, 리포트 대시보드)
-- 장진웅: Data/Infra & QA (DB 스키마 설계, Supabase 인프라 관리, 모니터링)
-
-## 🛠 기술 스택 (Tech Stack)
-- Framework: FastAPI (Backend), Next.js (Frontend)
-- Database: PostgreSQL (Supabase - Seoul Region), pgvector
-- AI/ML: OpenAI API (GPT-4o), LangChain
-- Infra: Docker, Celery, Redis
-
----
-
-## 📁 폴더 구조 (Repository Structure)
-아래 구조를 기준으로 개발합니다.
-
-```text
-daily-briefing-service/ (Root)
-├── .github/
-│   └── workflows/
-│       └── ci.yml                 # 자동화(CI) 설정
-├── backend/                       # FastAPI 백엔드 관련 모든 것
-│   ├── app/                       # API 비즈니스 로직
-│   ├── crawler/                   # 뉴스 수집 스크립트
-│   ├── tests/                     # 백엔드 테스트 코드
-│   └── requirements.txt           # 백엔드 라이브러리 목록 (이 위치)
-├── frontend/                      # 프론트엔드(웹/모바일/디자인)
-│   ├── src/                       # (Web) 소스 코드
-│   ├── public/                    # (Web) 정적 자산
-│   ├── package.json               # (Web) 의존성 (추가/정리 시 이 위치)
-│   ├── mobile/                    # Flutter 앱 소스
-│   └── design/                    # 디자인 산출물
-│       └── ui/                    # UI 산출물 (이전: infra/docs/ui)
-├── infra/                         # 인프라 및 데이터베이스 설계
-│   ├── supabase/                  # SQL/스키마 스크립트
-│   └── docs/                      # 인프라/DB 문서 (디자인 제외)
-├── .env.example                   # 환경변수 샘플 파일
-└── README.md                      # 프로젝트 메인 설명서
+```
+daily-briefing-service/
+├── apps/
+│   └── mobile/              🚀 Flutter 모바일 앱 (iOS/Android)
+│       ├── lib/             # Dart 소스 코드
+│       ├── test/            # 테스트 코드
+│       ├── android/         # Android 네이티브 설정 (로컬만)
+│       ├── ios/             # iOS 네이티브 설정 (로컬만)
+│       ├── pubspec.yaml     # Flutter 의존성
+│       └── analysis_options.yaml
+├── backend/                 🔧 Python 백엔드 (개발 예정)
+│   ├── app/                 # 메인 API 서버
+│   ├── crawler/             # 뉴스 크롤러
+│   └── tests/               # 테스트
+├── infra/                   ⚙️  배포 & 인프라 (개발 예정)
+│   └── docs/
+├── design/                  🎨 UI/UX 디자인 시스템
+│   ├── Guide.md             # 디자인 가이드라인
+│   └── ui/                  # 디자인 산출물
+├── .github/                 # GitHub 설정
+├── .gitignore
+└── README.md
 ```
 
-> 참고: Flutter 앱은 `frontend/mobile/`, 디자인 산출물은 `frontend/design/ui/`에서 관리합니다.
+## 🎯 주요 기능
 
----
+### 모바일 앱 (apps/mobile)
+- 뉴스 피드 표시
+- 키워드 기반 뉴스 필터링
+- 설정 및 알림 관리
+- 심플하고 직관적인 UI
 
-## 🧩 `.github/` 폴더 정리 가이드
-GitHub 관련 설정은 **모두 `.github/` 아래**에 모읍니다.
+### 백엔드 (backend) - TBD
+- 뉴스 크롤링 및 수집
+- 뉴스 데이터 API 제공
+- 추천 알고리즘
 
-### 1) `.github/workflows/` (자동화)
-- `ci.yml`: PR에서 빌드/린트 등 기본 검증
-  - 현재 CI는 다음 파일이 있을 때만 job을 실행하도록 조건이 걸려 있습니다.
-    - `backend/requirements.txt`가 있으면 `backend-ci` 실행
-    - `frontend/package.json`이 있으면 `frontend-ci` 실행
+### 배포 (infra) - TBD
+- Docker 컨테이너화
+- Kubernetes 오케스트레이션
+- CI/CD 파이프라인
 
-권장 파일(필요 시 추가):
-- `deploy.yml`: main 브랜치 배포용(추후)
-- `scheduled.yml`: 매일 08:00 작업(크롤링/요약)용(추후)
+## 🚀 빠른 시작
 
-### 2) PR/이슈 템플릿
-협업 품질을 위해 템플릿을 추가하는 걸 권장합니다.
-- PR 템플릿: `.github/PULL_REQUEST_TEMPLATE.md`
-- 이슈 템플릿: `.github/ISSUE_TEMPLATE/` (GitHub Issue Forms: `*.yml`)
+### 모바일 앱 개발
 
-### 3) CODEOWNERS (선택)
-리뷰 자동 할당이 필요하면 추가합니다.
-- 위치: `.github/CODEOWNERS`
-- 예: `backend/**`는 백엔드 담당, `frontend/**`는 프론트 담당에게 자동 리뷰 요청
+#### 요구사항
+- Flutter SDK 3.11.4 이상
+- Dart 3.11.4 이상
+- Android SDK 또는 iOS 개발 환경
 
-### 4) Dependabot (선택)
-의존성 자동 업데이트가 필요하면 추가합니다.
-- 위치: `.github/dependabot.yml`
+#### 설치 및 실행
 
----
+```bash
+# 1. 프로젝트 디렉토리 이동
+cd apps/mobile
 
-## 🌿 브랜치 전략 (Branch Strategy)
-효율적인 협업을 위해 아래 규칙을 준수합니다.
-
-```text
-기본 개발 흐름
-feature/*  →  develop  →  main
- (PR)         (PR)       (Release)
-
-핫픽스 흐름 (긴급 버그/장애)
-hotfix/*   →  main
- (PR)         (Deploy)
-   └────→  develop  (동일 변경사항 backport)
-
-예)
-feature/news-crawler  →  develop  →  main
-feature/ui-layout     →  develop  →  main
-hotfix/login-crash    →  main  (+ develop backport)
-```
-
-- `main`: 상용 배포 가능한 최종 결과물 (안정화된 코드만)
-- `develop`: 각 기능을 통합하여 테스트하는 개발 메인 브랜치
-- `feature/기능명`: 단위 기능 구현을 위한 개별 브랜치
-  - 예: `feature/db-setup`, `feature/news-crawler`, `feature/ui-layout`
-- `hotfix/이슈명`: 운영 긴급 대응 브랜치
-  - 예: `hotfix/login-crash`, `hotfix/api-timeout`
-
-## 📝 Pull Request (PR) & 커밋 규칙
-- PR 작성: 모든 작업은 `feature/*`에서 완료 후 `develop`으로 PR
-- develop PR은 최소 **1명 이상의 팀원 승인(Approve)** 후 Merge
-- `main` 머지는 **develop → main** 릴리즈 PR로만 진행 (핫픽스 제외)
-- Commit Message 권장:
-  - `[Feat]` 기능추가
-  - `[Fix]` 버그수정
-  - `[Docs]` 문서변경
-
----
-
-## ⚙️ 초기 설정 (Environment)
-로컬 개발 시 프로젝트 루트에 `.env` 파일을 만들고 아래 형식을 참조하세요.
-(※ 실제 접속 키는 공유 보안 채널로 전달)
-
-> ✅ `.env`는 커밋하지 않습니다. (`.env.example`만 유지)
-
-```env
-DATABASE_URL=postgresql://postgres:[PASSWORD]@db.rrwsrnvkbciowolfjjvw.supabase.co:5432/postgres
-OPENAI_API_KEY=sk-your-key-here
-```
-
----
-
-## 📱 Flutter (Mobile) 실행 가이드
-Flutter 앱은 `frontend/mobile`에서 실행합니다.
-
-```powershell
-cd frontend/mobile
-flutter doctor -v
+# 2. 의존성 설치
 flutter pub get
+
+# 3. 코드 분석 및 검사
+flutter analyze
+
+# 4. 앱 실행
 flutter run
 ```
 
-### 트러블슈팅: `adb devices`에 `offline`으로 나오는 경우
-```powershell
+## 📱 Android 에뮬레이터 가이드
+
+### 1. 환경 확인
+```bash
+flutter doctor -v
+```
+
+### 2. 에뮬레이터 목록 확인
+```bash
+flutter emulators
+```
+
+### 3. 에뮬레이터 실행
+```bash
+flutter emulators --launch <emulator_id>
+```
+
+예시:
+```bash
+flutter emulators --launch Pixel_9_ASCII
+```
+
+### 4. 디바이스 연결 확인
+```bash
+adb devices -l
+flutter devices
+```
+
+### 5. 앱 실행
+```bash
+cd apps/mobile
+flutter pub get
+flutter run -d emulator-5554
+```
+
+## 🔧 트러블슈팅
+
+### adb devices에서 offline으로 나오는 경우
+```bash
 adb kill-server
 adb start-server
 Get-Process -Name emulator,qemu-system-x86_64,adb -ErrorAction SilentlyContinue | Stop-Process -Force
+flutter emulators --launch <emulator_id>
 adb devices -l
 ```
 
-### 트러블슈팅: Windows에서 Kotlin daemon 경로 오류
-```powershell
+### Windows에서 Kotlin daemon 경로 오류
+```bash
 $env:GRADLE_USER_HOME='C:\gradle-cache'
-flutter run
+cd apps/mobile
+flutter run -d emulator-5554
 ```
+
+### Flutter pub get 오류
+```bash
+cd apps/mobile
+flutter clean
+flutter pub get
+```
+
+## 📦 개발 안내
+
+### 디렉토리 구조 설명
+
+**apps/mobile/lib/**
+```
+lib/
+├── main.dart              # 앱 진입점
+├── core/
+│   ├── router/           # 라우팅 설정
+│   └── theme/            # 테마 & 색상
+├── features/             # 기능별 모듈
+│   ├── auth/             # 인증 관련
+│   ├── briefing/         # 뉴스 피드 메인
+│   ├── onboarding/       # 초기 설정
+│   └── settings/         # 사용자 설정
+└── shared/
+    └── widgets/          # 공통 위젯
+```
+
+### 코드 스타일 가이드
+- Dart 공식 코드 스타일 준수
+- `flutter analyze` 정기적 실행
+- Feature 단위의 모듈화 구조
+
+### 버전 정보
+- **Dart**: 3.11.4
+- **Flutter**: 3.41.6
+- **go_router**: 14.8.1
+- **cupertino_icons**: 1.0.8
+
+## 🔄 Git 워크플로우
+
+### 브랜치 전략
+- `main`: 프로덕션 배포
+- `develop`: 개발 메인 브랜치
+- `feature/*`: 새로운 기능 개발
+- `bugfix/*`: 버그 수정
+- `chore/*`: 구조/설정 변경
+
+### 커밋 컨벤션
+```
+feat:  새로운 기능
+fix:   버그 수정
+refactor: 코드 리팩토링
+chore: 설정/패키지 변경
+docs:  문서 업데이트
+test:  테스트 추가/수정
+```
+
+## 📚 문서
+
+- [디자인 가이드](design/Guide.md) - UI/UX 디자인 시스템
+- [Flutter 공식 문서](https://flutter.dev/docs)
+- [Dart 공식 문서](https://dart.dev)
+
+## 🤝 컨트리뷰션
+
+1. 이슈 등록 또는 기존 이슈에 댓글
+2. Fork 및 feature 브랜치 생성
+3. 코드 작성 및 테스트
+4. Pull Request 제출
+
+## 📝 라이센스
+
+[라이센스 정보]
+
+## 👥 팀
+
+- 개발: 프로젝트 팀
+
+---
+
+**최종 업데이트**: 2026-04-14
+**상태**: 모바일 앱 개발 중 🔨
