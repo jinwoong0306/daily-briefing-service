@@ -17,6 +17,10 @@ class Settings(BaseSettings):
 
     keyword_min_count: int = 1
     keyword_max_count: int = 3
+    cache_ttl_seconds: int = 300
+    login_rate_limit_per_minute: int = 10
+    auth_metrics_window_size: int = 200
+    api_settings_metrics_window_size: int = 200
 
 
 @lru_cache

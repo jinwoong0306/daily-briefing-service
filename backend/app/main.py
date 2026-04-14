@@ -1,15 +1,23 @@
 from contextlib import asynccontextmanager
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
 
 from app.core.config import get_settings
 from app.db import Base, check_db_connection, engine
+from app.errors import (
+    http_exception_handler,
+    unhandled_exception_handler,
+    validation_exception_handler,
+)
 from app.routers.auth import router as auth_router
 from app.routers.health import router as health_router
 from app.routers.keywords import router as keywords_router
+from app.routers.notifications import router as notifications_router
 
 settings = get_settings()
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -25,10 +33,14 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(Exception, unhandled_exception_handler)
 
 app.include_router(health_router)
 app.include_router(auth_router, prefix=settings.api_prefix)
 app.include_router(keywords_router, prefix=settings.api_prefix)
+app.include_router(notifications_router, prefix=settings.api_prefix)
 
 
 @app.get("/")

@@ -29,6 +29,7 @@ class TokenResponse(BaseModel):
 
 class KeywordsUpdateRequest(BaseModel):
     keywords: list[str]
+    expected_version: str | None = None
 
     @field_validator("keywords")
     @classmethod
@@ -50,3 +51,39 @@ class KeywordsUpdateRequest(BaseModel):
 class KeywordsResponse(BaseModel):
     user_id: int
     keywords: list[str]
+    version: str
+
+
+class NotificationSettingsUpdateRequest(BaseModel):
+    enabled: bool | None = None
+    delivery_hour: int | None = Field(default=None, ge=0, le=23)
+    delivery_minute: int | None = Field(default=None, ge=0, le=59)
+    timezone: str | None = Field(default=None, min_length=1, max_length=64)
+    expected_version: str | None = None
+
+    @field_validator("timezone")
+    @classmethod
+    def normalize_timezone(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("timezone cannot be empty")
+        return normalized
+
+    @property
+    def has_any_field(self) -> bool:
+        return any(
+            value is not None
+            for value in (self.enabled, self.delivery_hour, self.delivery_minute, self.timezone)
+        )
+
+
+class NotificationSettingsResponse(BaseModel):
+    user_id: int
+    enabled: bool
+    delivery_hour: int
+    delivery_minute: int
+    timezone: str
+    updated_at: datetime
+    version: str

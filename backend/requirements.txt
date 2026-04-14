@@ -6,3 +6,5 @@ email-validator
 passlib[bcrypt]
 python-jose[cryptography]
 psycopg[binary]
+pytest
+httpx
