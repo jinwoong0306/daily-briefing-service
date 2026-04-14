@@ -8,6 +8,7 @@
 
 ```
 daily-briefing-service/
+├── .github/                 # GitHub 설정
 ├── apps/
 │   └── mobile/              🚀 Flutter 모바일 앱 (iOS/Android)
 │       ├── lib/             # Dart 소스 코드
@@ -16,17 +17,18 @@ daily-briefing-service/
 │       ├── ios/             # iOS 네이티브 설정 (로컬만)
 │       ├── pubspec.yaml     # Flutter 의존성
 │       └── analysis_options.yaml
-├── backend/                 🔧 Python 백엔드 (개발 예정)
+├── backend/                 🔧 Python 백엔드
 │   ├── app/                 # 메인 API 서버
 │   ├── crawler/             # 뉴스 크롤러
-│   └── tests/               # 테스트
-├── infra/                   ⚙️  배포 & 인프라 (개발 예정)
-│   └── docs/
-├── design/                  🎨 UI/UX 디자인 시스템
-│   ├── Guide.md             # 디자인 가이드라인
-│   └── ui/                  # 디자인 산출물
-├── .github/                 # GitHub 설정
-├── .gitignore
+│   ├── tests/               # 테스트
+│   ├── requirements.txt
+│   └── gitkeep
+├── frontend/                🎨 프론트엔드 영역
+│   └── design/
+│       └── Guide.md         # 디자인 가이드라인
+├── infra/                   ⚙️ 배포 & 인프라
+│   ├── docs/
+│   └── supabase/
 └── README.md
 ```
 
@@ -185,7 +187,7 @@ test:  테스트 추가/수정
 
 ## 📚 문서
 
-- [디자인 가이드](design/Guide.md) - UI/UX 디자인 시스템
+- [디자인 가이드](frontend/design/Guide.md) - UI/UX 디자인 시스템
 - [Flutter 공식 문서](https://flutter.dev/docs)
 - [Dart 공식 문서](https://dart.dev)
 
