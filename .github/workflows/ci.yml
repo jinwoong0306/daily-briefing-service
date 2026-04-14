@@ -100,23 +100,30 @@ jobs:
     if: ${{ always() && (needs.backend-lint-test.result == 'failure' || needs.frontend-lint-test.result == 'failure') }}
     steps:
       - name: Send Slack notification
-        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: ${{ env.SLACK_WEBHOOK_URL != '' }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
             --data "{\"text\":\"[CI FAILED] ${{ github.repository }} @ ${{ github.ref_name }} - ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
-            "${{ secrets.SLACK_WEBHOOK_URL }}"
+            "$SLACK_WEBHOOK_URL"
 
       - name: Send email notification
-        if: ${{ secrets.SMTP_HOST != '' && secrets.SMTP_USER != '' && secrets.SMTP_PASS != '' && secrets.ALERT_EMAIL_TO != '' }}
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+        if: ${{ env.SMTP_HOST != '' && env.SMTP_USER != '' && env.SMTP_PASS != '' && env.ALERT_EMAIL_TO != '' }}
         uses: dawidd6/action-send-mail@v3
         with:
-          server_address: ${{ secrets.SMTP_HOST }}
+          server_address: ${{ env.SMTP_HOST }}
           server_port: 587
-          username: ${{ secrets.SMTP_USER }}
-          password: ${{ secrets.SMTP_PASS }}
+          username: ${{ env.SMTP_USER }}
+          password: ${{ env.SMTP_PASS }}
           subject: "[CI FAILED] ${{ github.repository }} @ ${{ github.ref_name }}"
-          to: ${{ secrets.ALERT_EMAIL_TO }}
-          from: ${{ secrets.SMTP_USER }}
+          to: ${{ env.ALERT_EMAIL_TO }}
+          from: ${{ env.SMTP_USER }}
           body: |
             CI failed.
             Repo: ${{ github.repository }}
