@@ -210,3 +210,40 @@ test:  테스트 추가/수정
 
 **최종 업데이트**: 2026-04-14
 **상태**: 모바일 앱 개발 중 🔨
+
+---
+
+## News Crawling and AI Pipeline
+
+The scheduled crawling, clustering, AI briefing, Redis caching, and push-delivery boundary lives in `backend/pipeline`.
+
+Recommended local setup:
+
+```bash
+cd backend/pipeline
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r ../requirements.txt
+cp .env.example .env
+cp config.example.json config.json
+```
+
+Core run modes:
+
+```bash
+python main.py collect
+python main.py finalize
+python main.py brief
+python main.py deliver
+```
+
+Runtime flow:
+
+```text
+collect  -> Supabase user_keywords 기준 뉴스 수집 후 staging 누적
+finalize -> staging 데이터 클러스터링 후 Supabase articles 적재
+brief    -> articles 기반 AI 선정/요약 후 Redis 저장
+deliver  -> Redis 사용자별 브리핑을 앱 푸시 발송 경계로 전달
+```
+
+Do not commit `.env`, `config.json`, `cache/`, or `logs/`. See `backend/pipeline/README.md` for the full Windows WSL cron guide and Redis app integration notes.

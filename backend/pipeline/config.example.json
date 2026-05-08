@@ -1,0 +1,13 @@
+{
+  "api": {
+    "client_id": "YOUR_NAVER_CLIENT_ID",
+    "client_secret": "YOUR_NAVER_CLIENT_SECRET"
+  },
+  "keywords": [],
+  "search_options": {
+    "display": 10,
+    "sort": "date",
+    "start": 1,
+    "sources": ["naver", "google"]
+  }
+}

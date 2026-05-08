@@ -56,3 +56,20 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local secrets
+.env
+.env.*
+!.env.example
+config.json
+
+# Python pipeline runtime artifacts
+backend/pipeline/.env
+backend/pipeline/config.json
+backend/pipeline/.venv/
+backend/pipeline/venv/
+backend/pipeline/logs/
+backend/pipeline/cache/*.json
+backend/pipeline/cache/*.png
+backend/pipeline/cache/staging/*.json
+backend/pipeline/cache/staging/archive/*.json
