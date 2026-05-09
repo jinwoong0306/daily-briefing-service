@@ -38,6 +38,7 @@ NAVER_CLIENT_SECRET="YOUR_NAVER_CLIENT_SECRET"
 SUPABASE_URL="https://YOUR-PROJECT-REF.supabase.co"
 SUPABASE_SERVICE_ROLE_KEY="YOUR_SUPABASE_SERVICE_ROLE_KEY"
 REDIS_URL="rediss://default:YOUR_UPSTASH_TOKEN@YOUR_UPSTASH_HOST.upstash.io:6379"
+THUMBNAIL_FETCH_TIMEOUT_SECONDS="5"
 ```
 
 ## Manual Run
@@ -116,3 +117,19 @@ for key in sorted(client.scan_iter(f"briefing:{date}:keyword:*")):
     print("summary:", data.get("summary"))
 PY
 ```
+
+
+## Thumbnail Fields
+
+During `brief`, the pipeline fetches thumbnails only for AI-selected articles. It reads common article metadata such as `og:image`, `og:image:secure_url`, `twitter:image`, and `image_src`, then stores the result in Redis item payloads.
+
+```json
+{
+  "title": "Article title",
+  "url": "https://example.com/news",
+  "thumbnail_url": "https://example.com/thumbnail.jpg",
+  "thumbnail_status": "found"
+}
+```
+
+`thumbnail_status` is one of `found`, `missing`, or `error`. If `thumbnail_url` is `null`, the app should display a default image.

@@ -9,8 +9,11 @@ import logging
 import os
 from datetime import datetime
 from typing import Optional, Protocol
+from urllib.parse import urljoin
 
 import pytz
+import requests
+from bs4 import BeautifulSoup
 from dateutil import parser as date_parser
 
 try:
@@ -30,6 +33,7 @@ from supabase_uploader import (
 
 
 KST = pytz.timezone("Asia/Seoul")
+DEFAULT_THUMBNAIL_TIMEOUT_SECONDS = 5
 
 
 def _env_int(name: str, default: int) -> int:
@@ -113,14 +117,71 @@ def _article_for_selection(article: dict, max_chars: int) -> dict:
 
 def _article_for_summary(article: dict, max_chars: int) -> dict:
     content = article.get("content") or ""
+    thumbnail = extract_thumbnail_url(str(article.get("url") or ""))
     return {
         "id": str(article.get("id")),
         "title": article.get("title"),
         "url": article.get("url"),
+        "thumbnail_url": thumbnail.get("thumbnail_url"),
+        "thumbnail_status": thumbnail.get("thumbnail_status"),
         "pub_date": article.get("pub_date"),
         "source_type": article.get("source_type"),
         "content": content[:max_chars],
     }
+
+
+def extract_thumbnail_url(article_url: str) -> dict:
+    """
+    Extract an article thumbnail from common Open Graph/Twitter image tags.
+
+    This runs only for AI-selected articles during the briefing step, so we avoid
+    adding request load during broad crawling and keep the DB schema unchanged.
+    """
+    article_url = article_url.strip()
+    if not article_url:
+        return {"thumbnail_url": None, "thumbnail_status": "missing"}
+
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0 Safari/537.36"
+        )
+    }
+
+    try:
+        response = requests.get(
+            article_url,
+            headers=headers,
+            timeout=_env_int(
+                "THUMBNAIL_FETCH_TIMEOUT_SECONDS",
+                DEFAULT_THUMBNAIL_TIMEOUT_SECONDS,
+            ),
+        )
+        response.raise_for_status()
+    except requests.RequestException as e:
+        logging.warning(f"Thumbnail fetch failed url={article_url}: {e}")
+        return {"thumbnail_url": None, "thumbnail_status": "error"}
+
+    soup = BeautifulSoup(response.content, "lxml")
+    selectors = [
+        ("meta", {"property": "og:image:secure_url"}, "content"),
+        ("meta", {"property": "og:image"}, "content"),
+        ("meta", {"name": "twitter:image"}, "content"),
+        ("meta", {"name": "twitter:image:src"}, "content"),
+        ("link", {"rel": "image_src"}, "href"),
+    ]
+
+    for tag_name, attrs, value_attr in selectors:
+        tag = soup.find(tag_name, attrs=attrs)
+        raw_url = str(tag.get(value_attr) or "").strip() if tag else ""
+        if raw_url:
+            return {
+                "thumbnail_url": urljoin(response.url, raw_url),
+                "thumbnail_status": "found",
+            }
+
+    return {"thumbnail_url": None, "thumbnail_status": "missing"}
 
 
 def _extract_chat_json(response) -> dict:
@@ -272,6 +333,8 @@ class OpenAIBriefingAI:
                     "id": article.get("id"),
                     "title": article.get("title"),
                     "url": article.get("url"),
+                    "thumbnail_url": article.get("thumbnail_url"),
+                    "thumbnail_status": article.get("thumbnail_status"),
                     "pub_date": article.get("pub_date"),
                     "source_type": article.get("source_type"),
                     "summary": summaries_by_id.get(str(article.get("id")), ""),
@@ -318,6 +381,8 @@ class PlaceholderBriefingAI:
                     "id": article.get("id"),
                     "title": article.get("title"),
                     "url": article.get("url"),
+                    "thumbnail_url": article.get("thumbnail_url"),
+                    "thumbnail_status": article.get("thumbnail_status"),
                     "pub_date": article.get("pub_date"),
                     "source_type": article.get("source_type"),
                     "summary": "",
