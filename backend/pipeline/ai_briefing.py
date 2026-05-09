@@ -295,9 +295,9 @@ class OpenAIBriefingAI:
         payload = {
             "keyword": keyword,
             "summary_rules": [
-                "Write the keyword-level summary in 5-7 complete Korean sentences.",
-                "For each article, write a Korean summary in 3-4 complete sentences.",
-                "Explain what happened, why it matters, and what users should pay attention to next.",
+                "Write the keyword-level summary in 3-4 complete Korean sentences.",
+                "For each article, write a Korean summary in 2 complete sentences.",
+                "Explain what happened and why it matters, but avoid unnecessary detail.",
                 "Use natural paragraphs, not bullet points or Markdown.",
                 "Do not invent facts not present in the article content.",
                 "Keep wording neutral, specific, and useful for a morning briefing.",
@@ -305,11 +305,11 @@ class OpenAIBriefingAI:
             "articles": summary_inputs,
             "required_json_schema": {
                 "headline": "string",
-                "summary": "5-7 sentence Korean keyword-level briefing",
+                "summary": "3-4 sentence Korean keyword-level briefing",
                 "items": [
                     {
                         "id": "article id",
-                        "summary": "3-4 sentence Korean article-level briefing"
+                        "summary": "2 sentence Korean article-level briefing"
                     }
                 ],
             },
@@ -317,7 +317,7 @@ class OpenAIBriefingAI:
         result = self._json_completion(
             system_prompt=system_prompt,
             user_payload=payload,
-            max_completion_tokens=_env_int("OPENAI_SUMMARY_MAX_TOKENS", 3000),
+            max_completion_tokens=_env_int("OPENAI_SUMMARY_MAX_TOKENS", 2000),
         )
 
         summaries_by_id = {}
