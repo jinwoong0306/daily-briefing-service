@@ -3,16 +3,24 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
 TEST_DB_PATH = Path(__file__).parent / "test_api.db"
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_PATH.as_posix()}"
 os.environ["AUTO_CREATE_TABLES"] = "true"
 os.environ["JWT_SECRET_KEY"] = "test-secret-key"
 os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "60"
+os.environ["INGEST_SCHEDULER_ENABLED"] = "false"
+os.environ["INGEST_ADMIN_EMAILS"] = ""
+os.environ["REDIS_URL"] = ""
+os.environ["SUPABASE_URL"] = "https://example-project.supabase.co"
+os.environ["SUPABASE_ANON_KEY"] = "test-supabase-anon-key"
 
 from app.db import Base, engine  # noqa: E402
 from app.main import app  # noqa: E402
 from app.routers.auth import login_rate_limiter  # noqa: E402
+from app.routers import auth as auth_router  # noqa: E402
+from app.routers import ingest as ingest_router  # noqa: E402
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -30,6 +38,22 @@ def cleanup_test_db():
 def reset_schema():
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS articles (
+                    id INTEGER PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    content TEXT,
+                    keyword TEXT,
+                    source_type TEXT,
+                    pub_date TEXT,
+                    url TEXT
+                )
+                """
+            )
+        )
     yield
 
 
@@ -51,6 +75,36 @@ def login_user(client: TestClient, email: str = "user1@example.com", password: s
         "/api/v1/auth/login",
         json={"email": email, "password": password},
     )
+
+
+def insert_article(
+    *,
+    article_id: int,
+    title: str,
+    keyword: str,
+    content: str = "뉴스 본문",
+    source_type: str = "Test Source",
+    pub_date: str = "2026-05-08T03:00:00+00:00",
+    url: str = "https://example.com/news",
+) -> None:
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                INSERT INTO articles (id, title, content, keyword, source_type, pub_date, url)
+                VALUES (:id, :title, :content, :keyword, :source_type, :pub_date, :url)
+                """
+            ),
+            {
+                "id": article_id,
+                "title": title,
+                "content": content,
+                "keyword": keyword,
+                "source_type": source_type,
+                "pub_date": pub_date,
+                "url": url,
+            },
+        )
 
 
 def test_auth_register_login_and_error_format(client: TestClient):
@@ -120,6 +174,57 @@ def test_login_rate_limit_blocks_bruteforce(client: TestClient):
     finally:
         login_rate_limiter.max_attempts = original_limit
         login_rate_limiter.reset("testclient:rate-limit@example.com")
+
+
+def test_google_login_via_supabase_exchange_returns_token(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    def _fake_fetch(_: str) -> dict:
+        return {
+            "email": "google-user@example.com",
+            "app_metadata": {"provider": "google"},
+            "user_metadata": {"name": "Google User"},
+        }
+
+    monkeypatch.setattr(auth_router, "_fetch_supabase_user", _fake_fetch)
+
+    response = client.post(
+        "/api/v1/auth/google/supabase",
+        json={"access_token": "fake-supabase-token"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["token_type"] == "bearer"
+    assert body["access_token"]
+    assert body["user"]["email"] == "google-user@example.com"
+
+    # same account should login to existing user
+    second = client.post(
+        "/api/v1/auth/google/supabase",
+        json={"access_token": "fake-supabase-token"},
+    )
+    assert second.status_code == 200
+    assert second.json()["user"]["email"] == "google-user@example.com"
+
+
+def test_get_my_profile_requires_auth_and_returns_user(client: TestClient):
+    unauthorized_response = client.get("/api/v1/users/profile")
+    assert unauthorized_response.status_code == 401
+    unauthorized_body = unauthorized_response.json()
+    assert unauthorized_body["success"] is False
+    assert unauthorized_body["error"]["code"] == "UNAUTHORIZED"
+
+    register_response = register_user(client, email="profile@example.com")
+    token = register_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    profile_response = client.get("/api/v1/users/profile", headers=headers)
+    assert profile_response.status_code == 200
+    profile_body = profile_response.json()
+    assert profile_body["email"] == "profile@example.com"
+    assert profile_body["id"] > 0
+    assert "created_at" in profile_body
 
 
 def test_keywords_settings_scope_validation(client: TestClient):
@@ -207,3 +312,242 @@ def test_notification_settings_get_and_update(client: TestClient):
     empty_payload_body = empty_payload_response.json()
     assert empty_payload_body["success"] is False
     assert empty_payload_body["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_briefing_actions_return_404_for_missing_article(client: TestClient):
+    register_response = register_user(client, email="briefing-action@example.com")
+    token = register_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    feedback_response = client.post(
+        "/api/v1/briefings/99999/feedback",
+        headers=headers,
+        json={"feedback_type": "like"},
+    )
+    assert feedback_response.status_code == 404
+    feedback_body = feedback_response.json()
+    assert feedback_body["success"] is False
+    assert feedback_body["error"]["code"] == "NOT_FOUND"
+
+    bookmark_put_response = client.put(
+        "/api/v1/briefings/99999/bookmark",
+        headers=headers,
+    )
+    assert bookmark_put_response.status_code == 404
+    bookmark_put_body = bookmark_put_response.json()
+    assert bookmark_put_body["success"] is False
+    assert bookmark_put_body["error"]["code"] == "NOT_FOUND"
+
+    bookmark_delete_response = client.delete(
+        "/api/v1/briefings/99999/bookmark",
+        headers=headers,
+    )
+    assert bookmark_delete_response.status_code == 404
+    bookmark_delete_body = bookmark_delete_response.json()
+    assert bookmark_delete_body["success"] is False
+    assert bookmark_delete_body["error"]["code"] == "NOT_FOUND"
+
+
+def test_briefings_today_applies_category_normalization(client: TestClient):
+    register_response = register_user(client, email="briefing-today@example.com")
+    token = register_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    keywords_response = client.put(
+        "/api/v1/users/keywords",
+        headers=headers,
+        json={"keywords": ["스포츠", "엔터테인먼트", "정치"]},
+    )
+    assert keywords_response.status_code == 200
+
+    insert_article(article_id=101, title="Sports headline", keyword="sports")
+    insert_article(article_id=102, title="Politics headline", keyword="politics")
+    insert_article(article_id=103, title="IT headline", keyword="IT/과학")
+
+    response = client.get("/api/v1/briefings/today", headers=headers)
+    assert response.status_code == 200
+    body = response.json()
+    ids = {item["id"] for item in body["items"]}
+    categories = {item["category"] for item in body["items"]}
+
+    assert "101" in ids
+    assert "102" in ids
+    assert "103" not in ids
+    assert "스포츠" in categories
+    assert "정치" in categories
+
+
+def test_briefing_bookmark_flow_returns_saved_items(client: TestClient):
+    register_response = register_user(client, email="briefing-bookmark@example.com")
+    token = register_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    insert_article(article_id=201, title="Entertainment headline", keyword="entertainment")
+
+    save_response = client.put("/api/v1/briefings/201/bookmark", headers=headers)
+    assert save_response.status_code == 200
+
+    bookmarks_response = client.get("/api/v1/briefings/bookmarks", headers=headers)
+    assert bookmarks_response.status_code == 200
+    bookmarks_body = bookmarks_response.json()
+
+    assert len(bookmarks_body["items"]) == 1
+    item = bookmarks_body["items"][0]
+    assert item["id"] == "201"
+    assert item["category"] == "엔터테인먼트"
+    assert item["is_bookmarked"] is True
+
+
+class _FakeRedis:
+    def __init__(self):
+        self._keys = {
+            "news:list": "list",
+            "news:stream": "stream",
+            "briefing:2026-05-09:keyword:%EC%8A%A4%ED%8F%AC%EC%B8%A0": "string",
+            "briefing:2026-05-09:user:1": "string",
+        }
+
+    def scan_iter(self, match="*", count=200):  # noqa: ANN001
+        if match in ("", "*"):
+            return iter(self._keys.keys())
+        prefix = match.rstrip("*")
+        return iter([key for key in self._keys if key.startswith(prefix)])
+
+    def type(self, key: str) -> str:
+        return self._keys.get(key, "none")
+
+    def lrange(self, key: str, start: int, end: int):  # noqa: ARG002
+        if key != "news:list":
+            return []
+        return [
+            '{"title":"Redis News","content":"본문","keyword":"sports","source":"Redis","url":"https://example.com/redis-news","pub_date":"2026-05-09T00:00:00+00:00"}'
+        ]
+
+    def xrevrange(self, key: str, count: int):  # noqa: ARG002
+        if key != "news:stream":
+            return []
+        return [("1-0", {"title": "Stream News", "keyword": "politics"})]
+
+    def smembers(self, key: str):  # noqa: ARG002
+        return set()
+
+    def zrevrange(self, key: str, start: int, end: int, withscores: bool):  # noqa: ARG002
+        return []
+
+    def get(self, key: str):  # noqa: ARG002
+        if key == "briefing:2026-05-09:keyword:%EC%8A%A4%ED%8F%AC%EC%B8%A0":
+            return (
+                '{"keyword":"���","items":[{"title":"Batch Redis News","summary":"요약",'
+                '"url":"https://example.com/batch-redis-news","source_type":"Redis Batch",'
+                '"pub_date":"2026-05-09T09:00:00+09:00"}]}'
+            )
+        if key == "briefing:2026-05-09:user:1":
+            return (
+                '{"briefing_date":"2026-05-09","user_id":"1","keywords":[{"keyword":"AI",'
+                '"headline":"AI 헤드라인","summary":"AI 요약","items":[{"id":"123","title":"AI 기사",'
+                '"summary":"기사 요약","url":"https://example.com/ai","source_type":"naver",'
+                '"pub_date":"2026-05-09T01:00:00+09:00"}]}]}'
+            )
+        return None
+
+
+def test_ingest_redis_keys_and_pull(client: TestClient):
+    register_response = register_user(client, email="ingest@example.com")
+    token = register_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    original_client_factory = ingest_router._redis_client
+    ingest_router._redis_client = lambda: _FakeRedis()
+    try:
+        keys_response = client.get("/api/v1/ingest/redis/keys", headers=headers)
+        assert keys_response.status_code == 200
+        keys_body = keys_response.json()
+        assert keys_body["total_keys"] >= 2
+
+        pull_response = client.post(
+            "/api/v1/ingest/redis/pull?key=news:list&limit=10",
+            headers=headers,
+        )
+        assert pull_response.status_code == 200
+        pull_body = pull_response.json()
+        assert pull_body["fetched"] == 1
+        assert pull_body["created"] == 1
+
+        briefings_response = client.get("/api/v1/briefings/today", headers=headers)
+        assert briefings_response.status_code == 200
+        items = briefings_response.json()["items"]
+        assert any(item["title"] == "Redis News" for item in items)
+    finally:
+        ingest_router._redis_client = original_client_factory
+
+
+def test_ingest_redis_batch_pull(client: TestClient):
+    register_response = register_user(client, email="ingest-batch@example.com")
+    token = register_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    original_client_factory = ingest_router._redis_client
+    ingest_router._redis_client = lambda: _FakeRedis()
+    try:
+        batch_response = client.post(
+            "/api/v1/ingest/redis/pull/batch?match=briefing:*&per_key_limit=10&max_keys=10",
+            headers=headers,
+        )
+        assert batch_response.status_code == 200
+        batch_body = batch_response.json()
+        assert batch_body["keys_processed"] >= 1
+        assert batch_body["fetched"] >= 1
+        assert batch_body["created"] >= 1
+
+        briefings_response = client.get("/api/v1/briefings/today", headers=headers)
+        assert briefings_response.status_code == 200
+        items = briefings_response.json()["items"]
+        assert any(item["title"] == "Batch Redis News" for item in items)
+        assert any(item["category"] == "스포츠" for item in items)
+    finally:
+        ingest_router._redis_client = original_client_factory
+
+
+def test_briefings_today_grouped_reads_user_briefing_from_redis(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    register_response = register_user(client, email="grouped-briefing@example.com")
+    token = register_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    monkeypatch.setattr("app.routers.briefings.settings.redis_url", "redis://fake")
+    monkeypatch.setattr("app.routers.briefings._redis_client", lambda: _FakeRedis())
+    response = client.get("/api/v1/briefings/today/grouped", headers=headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["user_id"] == "1"
+    assert len(body["keywords"]) == 1
+    assert body["keywords"][0]["keyword"] == "AI"
+    assert body["keywords"][0]["items"][0]["title"] == "AI 기사"
+
+
+def test_ingest_admin_email_restriction(client: TestClient):
+    blocked_register = register_user(client, email="blocked-ingest@example.com")
+    blocked_token = blocked_register.json()["access_token"]
+    blocked_headers = {"Authorization": f"Bearer {blocked_token}"}
+
+    allowed_register = register_user(client, email="allowed-ingest@example.com")
+    allowed_token = allowed_register.json()["access_token"]
+    allowed_headers = {"Authorization": f"Bearer {allowed_token}"}
+
+    original_admin_emails = ingest_router.settings.ingest_admin_emails
+    original_client_factory = ingest_router._redis_client
+    ingest_router.settings.ingest_admin_emails = "allowed-ingest@example.com"
+    ingest_router._redis_client = lambda: _FakeRedis()
+    try:
+        blocked_response = client.get("/api/v1/ingest/redis/keys", headers=blocked_headers)
+        assert blocked_response.status_code == 403
+        blocked_body = blocked_response.json()
+        assert blocked_body["success"] is False
+        assert blocked_body["error"]["code"] == "FORBIDDEN"
+
+        allowed_response = client.get("/api/v1/ingest/redis/keys", headers=allowed_headers)
+        assert allowed_response.status_code == 200
+    finally:
+        ingest_router.settings.ingest_admin_emails = original_admin_emails
+        ingest_router._redis_client = original_client_factory

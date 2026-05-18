@@ -48,3 +48,6 @@ app.*.map.json
 backend/.env
 backend/.env.bak
 backend/app/__pycache__/
+
+# Flutter local runtime env
+frontend.env

@@ -21,6 +21,16 @@ class Settings(BaseSettings):
     login_rate_limit_per_minute: int = 10
     auth_metrics_window_size: int = 200
     api_settings_metrics_window_size: int = 200
+    redis_url: str | None = None
+    redis_scan_count: int = 200
+    ingest_admin_emails: str | None = None
+    ingest_scheduler_enabled: bool = False
+    ingest_scheduler_interval_minutes: int = 10
+    ingest_batch_match: str = "briefing:*"
+    ingest_batch_per_key_limit: int = 50
+    ingest_batch_max_keys: int = 20
+    supabase_url: str | None = None
+    supabase_anon_key: str | None = None
 
 
 @lru_cache

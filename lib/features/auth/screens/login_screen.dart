@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../services/api_exception.dart';
 import '../../../services/auth_api_service.dart';
+import '../../../services/supabase_oauth_service.dart';
 import '../../../shared/widgets/app_text_field_widget.dart';
 import '../../../shared/widgets/primary_button_widget.dart';
 import '../widgets/auth_logo_widget.dart';
@@ -16,10 +17,12 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final AuthApiService _authApiService = AuthApiService();
+  final SupabaseOAuthService _supabaseOAuthService = SupabaseOAuthService();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   bool _isSubmitting = false;
+  bool _isGoogleSubmitting = false;
 
   @override
   void dispose() {
@@ -70,6 +73,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 label: _isSubmitting ? '로그인 중...' : '로그인',
                 onPressed: _isSubmitting ? null : _onLoginPressed,
               ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: _isGoogleSubmitting ? null : _onGoogleLoginPressed,
+                icon: _isGoogleSubmitting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.login_rounded),
+                label: Text(_isGoogleSubmitting ? 'Google 로그인 중...' : 'Google로 로그인'),
+              ),
               const SizedBox(height: 16),
               Center(
                 child: TextButton(
@@ -106,6 +121,29 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  Future<void> _onGoogleLoginPressed() async {
+    setState(() => _isGoogleSubmitting = true);
+    try {
+      final String accessToken = await _supabaseOAuthService
+          .signInWithGoogleAndGetAccessToken();
+      await _authApiService.loginWithSupabaseGoogle(
+        supabaseAccessToken: accessToken,
+      );
+      if (!mounted) {
+        return;
+      }
+      context.go('/onboarding');
+    } on ApiException catch (error) {
+      _showMessage(error.toString());
+    } catch (_) {
+      _showMessage('Google 로그인 중 오류가 발생했습니다.');
+    } finally {
+      if (mounted) {
+        setState(() => _isGoogleSubmitting = false);
       }
     }
   }

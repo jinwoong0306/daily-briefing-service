@@ -10,11 +10,11 @@ class AppColors {
   static const Color secondaryContainer = Color(0xFFCBCEFF);
   static const Color tertiary = Color(0xFF8D3A8A);
 
-  static const Color background = Color(0xFFF8F5FF);
+  static const Color background = Color(0xFFFFFFFF);
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceLow = Color(0xFFF1EFFF);
-  static const Color surfaceHigh = Color(0xFFE0E0FF);
-  static const Color surfaceHighest = Color(0xFFD9DAFF);
+  static const Color surfaceLow = Color(0xFFF8FAFC);
+  static const Color surfaceHigh = Color(0xFFEFF2F7);
+  static const Color surfaceHighest = Color(0xFFE7ECF5);
 
   static const Color textPrimary = Color(0xFF282B51);
   static const Color textSecondary = Color(0xFF555881);

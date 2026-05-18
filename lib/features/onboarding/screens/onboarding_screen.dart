@@ -31,10 +31,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   ];
 
   final Set<String> _selectedKeywords = <String>{'IT/과학', '엔터테인먼트'};
+  String? _keywordsVersion;
   int _hour = 8;
   int _minute = 0;
   bool _isAm = true;
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedKeywords();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -136,7 +143,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     setState(() => _isSubmitting = true);
     try {
-      await _keywordsApiService.saveKeywords(preferences.keywords);
+      final KeywordsResponseModel response = await _keywordsApiService
+          .saveKeywords(
+            preferences.keywords,
+            expectedVersion: _keywordsVersion,
+          );
+      _keywordsVersion = response.version;
       if (!mounted) {
         return;
       }
@@ -150,6 +162,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         setState(() => _isSubmitting = false);
       }
     }
+  }
+
+  Future<void> _loadSavedKeywords() async {
+    try {
+      final KeywordsResponseModel response = await _keywordsApiService
+          .getKeywords();
+      if (!mounted) {
+        return;
+      }
+      if (response.keywords.isNotEmpty) {
+        setState(() {
+          _selectedKeywords
+            ..clear()
+            ..addAll(response.keywords);
+          _keywordsVersion = response.version;
+        });
+      } else {
+        _keywordsVersion = response.version;
+      }
+    } on ApiException {
+      // onboarding 첫 진입에서 조회 실패는 치명적이지 않으므로 무시
+    } catch (_) {}
   }
 
   void _showMessage(String message) {

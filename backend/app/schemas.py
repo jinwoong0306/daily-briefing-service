@@ -21,6 +21,14 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
 
+class GoogleLoginRequest(BaseModel):
+    id_token: str = Field(min_length=1)
+
+
+class SupabaseTokenExchangeRequest(BaseModel):
+    access_token: str = Field(min_length=1)
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -87,3 +95,58 @@ class NotificationSettingsResponse(BaseModel):
     timezone: str
     updated_at: datetime
     version: str
+
+
+class BriefingItemResponse(BaseModel):
+    id: str
+    category: str
+    title: str
+    summary: str
+    highlights: list[str]
+    image_url: str
+    source_name: str
+    published_at: datetime
+    read_time_minutes: int
+    original_url: str | None = None
+    is_bookmarked: bool = False
+    feedback_type: str | None = None
+
+
+class BriefingsTodayResponse(BaseModel):
+    items: list[BriefingItemResponse]
+
+
+class BriefingGroupedKeywordItemResponse(BaseModel):
+    id: str
+    title: str
+    summary: str
+    url: str | None = None
+    image_url: str | None = None
+    pub_date: datetime | None = None
+    source_type: str | None = None
+
+
+class BriefingGroupedKeywordResponse(BaseModel):
+    keyword: str
+    headline: str | None = None
+    summary: str | None = None
+    items: list[BriefingGroupedKeywordItemResponse]
+
+
+class BriefingsTodayGroupedResponse(BaseModel):
+    briefing_date: str
+    user_id: str
+    keywords: list[BriefingGroupedKeywordResponse]
+
+
+class BriefingFeedbackRequest(BaseModel):
+    feedback_type: str = Field(pattern="^(like|dislike)$")
+
+
+class BriefingActionResponse(BaseModel):
+    article_id: str
+    message: str
+
+
+class BriefingBookmarksResponse(BaseModel):
+    items: list[BriefingItemResponse]

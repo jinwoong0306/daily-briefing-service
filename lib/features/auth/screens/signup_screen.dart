@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../services/api_exception.dart';
 import '../../../services/auth_api_service.dart';
-import '../../../services/session_store.dart';
 import '../../../shared/widgets/app_text_field_widget.dart';
 import '../../../shared/widgets/primary_button_widget.dart';
 import '../widgets/auth_logo_widget.dart';
@@ -114,10 +113,8 @@ class _SignupScreenState extends State<SignupScreen> {
       if (!mounted) {
         return;
       }
-      // 회원가입 직후 재로그인 UX를 위해 발급 토큰을 비우고 로그인 화면으로 이동
-      SessionStore.accessToken = null;
-      _showMessage('회원가입 완료! 로그인해 주세요.');
-      context.go('/login');
+      _showMessage('회원가입 완료! 맞춤 설정을 진행해 주세요.');
+      context.go('/onboarding');
     } on ApiException catch (error) {
       _showMessage(error.toString());
     } catch (_) {

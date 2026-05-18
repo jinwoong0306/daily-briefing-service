@@ -28,6 +28,14 @@ class User(Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    article_feedbacks: Mapped[list["UserArticleFeedback"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    saved_articles: Mapped[list["UserSavedArticle"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class UserKeyword(Base):
@@ -72,3 +80,42 @@ class UserNotificationSetting(Base):
     )
 
     user: Mapped[User] = relationship(back_populates="notification_setting")
+
+
+class UserArticleFeedback(Base):
+    __tablename__ = "user_article_feedbacks"
+    __table_args__ = (UniqueConstraint("user_id", "article_id", name="uq_user_article_feedback"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    article_id: Mapped[int] = mapped_column(index=True)
+    feedback_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    user: Mapped[User] = relationship(back_populates="article_feedbacks")
+
+
+class UserSavedArticle(Base):
+    __tablename__ = "user_saved_articles"
+    __table_args__ = (UniqueConstraint("user_id", "article_id", name="uq_user_saved_article"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    article_id: Mapped[int] = mapped_column(index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    user: Mapped[User] = relationship(back_populates="saved_articles")
