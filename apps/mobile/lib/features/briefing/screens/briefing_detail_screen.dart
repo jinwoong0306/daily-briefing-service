@@ -17,6 +17,40 @@ class BriefingDetailScreen extends StatefulWidget {
 
 class _BriefingDetailScreenState extends State<BriefingDetailScreen> {
   FeedbackType? _selectedFeedback;
+  bool _isBookmarked = false;
+  bool _isGenerating = false;
+  String? _generatedSummary;
+
+  @override
+  void initState() {
+    super.initState();
+    final BriefingModel? item = widget.briefing;
+    if (item != null) {
+      _isBookmarked = item.isBookmarked;
+      if (item.feedbackType == 'like') {
+        _selectedFeedback = FeedbackType.like;
+      } else if (item.feedbackType == 'dislike') {
+        _selectedFeedback = FeedbackType.dislike;
+      }
+    }
+  }
+
+  Future<void> _generateSummary(BriefingModel item) async {
+    setState(() => _isGenerating = true);
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    if (!mounted) {
+      return;
+    }
+    final String summary = item.summary.trim();
+    final List<String> points = item.highlights.take(3).toList();
+    setState(() {
+      _generatedSummary = points.isNotEmpty
+          ? points.map((String e) => '• $e').join('\n')
+          : '• ${summary.isEmpty ? "요약 내용을 생성하지 못했습니다." : summary}';
+      _isGenerating = false;
+    });
+    // TODO: connect API
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +74,28 @@ class _BriefingDetailScreenState extends State<BriefingDetailScreen> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
         ),
         title: const Text('브리핑 상세'),
+        actions: <Widget>[
+          IconButton(
+            onPressed: () {
+              setState(() {
+                _isBookmarked = !_isBookmarked;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    _isBookmarked ? '브리핑을 저장했습니다.' : '저장을 취소했습니다.',
+                  ),
+                ),
+              );
+            },
+            icon: Icon(
+              _isBookmarked
+                  ? Icons.bookmark_rounded
+                  : Icons.bookmark_border_rounded,
+            ),
+            tooltip: _isBookmarked ? '저장 취소' : '저장',
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
@@ -70,10 +126,7 @@ class _BriefingDetailScreenState extends State<BriefingDetailScreen> {
             runSpacing: 8,
             children: <Widget>[
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
@@ -86,10 +139,7 @@ class _BriefingDetailScreenState extends State<BriefingDetailScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceLow,
                   borderRadius: BorderRadius.circular(999),
@@ -150,10 +200,7 @@ class _BriefingDetailScreenState extends State<BriefingDetailScreen> {
             ),
             child: Row(
               children: <Widget>[
-                const Icon(
-                  Icons.article_outlined,
-                  color: AppColors.textSecondary,
-                ),
+                const Icon(Icons.article_outlined, color: AppColors.textSecondary),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -164,6 +211,28 @@ class _BriefingDetailScreenState extends State<BriefingDetailScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 20),
+          OutlinedButton.icon(
+            onPressed: _isGenerating ? null : () => _generateSummary(item),
+            icon: const Icon(Icons.auto_awesome_rounded),
+            label: Text(_isGenerating ? '요약 생성 중...' : 'AI 요약 생성'),
+          ),
+          if (_generatedSummary != null) ...<Widget>[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLow,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: AppColors.panelShadow,
+              ),
+              child: Text(
+                _generatedSummary!,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+            ),
+          ],
           const SizedBox(height: 20),
           Text('이 브리핑은 어땠나요?', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 10),

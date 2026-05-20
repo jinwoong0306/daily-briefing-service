@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/primary_button_widget.dart';
+import '../../onboarding/widgets/keyword_chip_widget.dart';
 import '../models/notification_settings_model.dart';
 import '../widgets/notification_status_card.dart';
 
@@ -14,6 +15,20 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  static const List<String> _allKeywords = <String>[
+    'IT/과학',
+    '경제',
+    '정치',
+    '엔터테인먼트',
+    '스포츠',
+    '헬스',
+    '아트&컬처',
+    '월드 뉴스',
+  ];
+
+  Set<String> _selectedKeywords = <String>{'IT/과학', '엔터테인먼트'};
+  bool _isKeywordSaving = false;
+
   NotificationSettingsModel _settings = const NotificationSettingsModel(
     pushEnabled: true,
     morningBriefingEnabled: true,
@@ -78,6 +93,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // TODO: connect API
     await Future<void>.delayed(const Duration(milliseconds: 120));
     return 200;
+  }
+
+  Future<void> _saveKeywords() async {
+    if (_selectedKeywords.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('키워드를 최소 1개 선택해 주세요.')));
+      return;
+    }
+
+    setState(() => _isKeywordSaving = true);
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    if (!mounted) {
+      return;
+    }
+    setState(() => _isKeywordSaving = false);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('키워드가 저장되었습니다.')));
+    // TODO: connect API
+  }
+
+  void _toggleKeyword(String keyword) {
+    setState(() {
+      if (_selectedKeywords.contains(keyword)) {
+        _selectedKeywords.remove(keyword);
+        return;
+      }
+      if (_selectedKeywords.length >= 3) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('키워드는 최대 3개까지 선택할 수 있습니다.')),
+        );
+        return;
+      }
+      _selectedKeywords.add(keyword);
+    });
   }
 
   void _onSavePressed() async {
@@ -217,10 +268,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
+                Text('관심 키워드 설정', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 6),
                 Text(
-                  '브리핑 수신 시간',
-                  style: Theme.of(context).textTheme.titleLarge,
+                  '최소 1개, 최대 3개까지 선택할 수 있습니다.',
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 10,
+                  children: _allKeywords.map((String keyword) {
+                    return KeywordChipWidget(
+                      label: keyword,
+                      isSelected: _selectedKeywords.contains(keyword),
+                      onTap: () => _toggleKeyword(keyword),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  '선택 ${_selectedKeywords.length}/3',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: _isKeywordSaving ? null : _saveKeywords,
+                    child: Text(_isKeywordSaving ? '키워드 저장 중...' : '키워드 저장'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: AppColors.cardShadow,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text('브리핑 수신 시간', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 6),
                 Text(
                   '알림 시간 상세 설정은 Step 4에서 확장됩니다.',
@@ -289,10 +384,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const SizedBox(height: 20),
-          PrimaryButtonWidget(
-            label: '설정 저장',
-            onPressed: _onSavePressed,
-          ),
+          PrimaryButtonWidget(label: '설정 저장', onPressed: _onSavePressed),
           const SizedBox(height: 10),
           Text(
             'UI-003: FCM 연동은 백엔드/실서비스 설정 단계에서 활성화됩니다.',
@@ -311,14 +403,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         destinations: const <NavigationDestination>[
           NavigationDestination(icon: Icon(Icons.home_rounded), label: '홈'),
           NavigationDestination(icon: Icon(Icons.explore_rounded), label: '탐색'),
-          NavigationDestination(
-            icon: Icon(Icons.bookmark_rounded),
-            label: '저장',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_rounded),
-            label: '설정',
-          ),
+          NavigationDestination(icon: Icon(Icons.bookmark_rounded), label: '저장'),
+          NavigationDestination(icon: Icon(Icons.settings_rounded), label: '설정'),
         ],
       ),
     );
@@ -349,9 +435,9 @@ class _SettingSwitchTile extends StatelessWidget {
             children: <Widget>[
               Text(
                 title,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontSize: 18),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontSize: 18,
+                ),
               ),
               const SizedBox(height: 4),
               Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),

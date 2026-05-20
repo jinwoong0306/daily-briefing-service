@@ -9,6 +9,9 @@ class BriefingModel {
     required this.sourceName,
     required this.publishedAt,
     required this.readTimeMinutes,
+    this.originalUrl,
+    this.isBookmarked = false,
+    this.feedbackType,
   });
 
   final String id;
@@ -20,6 +23,9 @@ class BriefingModel {
   final String sourceName;
   final DateTime publishedAt;
   final int readTimeMinutes;
+  final String? originalUrl;
+  final bool isBookmarked;
+  final String? feedbackType;
 
   static final List<BriefingModel> mockBriefings = <BriefingModel>[
     // TODO: connect API
@@ -61,7 +67,8 @@ class BriefingModel {
       id: 'b003',
       category: '정치',
       title: '디지털 공공서비스 통합 정책 초안 공개',
-      summary: '정부가 인증·민원·데이터 연계를 하나의 사용자 경험으로 묶는 디지털 공공서비스 통합 초안을 공개했습니다.',
+      summary:
+          '정부가 인증·민원·데이터 연계를 하나의 사용자 경험으로 묶는 디지털 공공서비스 통합 초안을 공개했습니다.',
       highlights: <String>[
         '모바일 중심 민원 처리 UX 표준 제시',
         '기관 간 데이터 연계 절차 단순화',
@@ -74,6 +81,36 @@ class BriefingModel {
       readTimeMinutes: 5,
     ),
   ];
+
+  BriefingModel copyWith({
+    String? id,
+    String? category,
+    String? title,
+    String? summary,
+    List<String>? highlights,
+    String? imageUrl,
+    String? sourceName,
+    DateTime? publishedAt,
+    int? readTimeMinutes,
+    String? originalUrl,
+    bool? isBookmarked,
+    String? feedbackType,
+  }) {
+    return BriefingModel(
+      id: id ?? this.id,
+      category: category ?? this.category,
+      title: title ?? this.title,
+      summary: summary ?? this.summary,
+      highlights: highlights ?? this.highlights,
+      imageUrl: imageUrl ?? this.imageUrl,
+      sourceName: sourceName ?? this.sourceName,
+      publishedAt: publishedAt ?? this.publishedAt,
+      readTimeMinutes: readTimeMinutes ?? this.readTimeMinutes,
+      originalUrl: originalUrl ?? this.originalUrl,
+      isBookmarked: isBookmarked ?? this.isBookmarked,
+      feedbackType: feedbackType ?? this.feedbackType,
+    );
+  }
 
   static BriefingModel? findById(String id) {
     for (final BriefingModel item in mockBriefings) {

@@ -23,6 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _passwordError;
   String? _submitError;
   bool _isSubmitting = false;
+  bool _isGoogleSubmitting = false;
 
   @override
   void dispose() {
@@ -90,6 +91,12 @@ class _LoginScreenState extends State<LoginScreen> {
     return 200;
   }
 
+  Future<int> _requestGoogleLogin() async {
+    // TODO: connect API
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    return 200;
+  }
+
   Future<void> _submitLogin() async {
     FocusScope.of(context).unfocus();
 
@@ -126,6 +133,37 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         setState(() {
           _isSubmitting = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _submitGoogleLogin() async {
+    debugPrint('[SUBMIT] google login request');
+    setState(() {
+      _isGoogleSubmitting = true;
+      _submitError = null;
+    });
+
+    try {
+      final int response = await _requestGoogleLogin();
+      if (!mounted) {
+        return;
+      }
+      debugPrint('[SUBMIT] google login response: status=$response');
+      context.go('/onboarding');
+    } catch (e) {
+      debugPrint('[SUBMIT] google login failed: error=$e');
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _submitError = 'Google 로그인에 실패했습니다. 다시 시도해 주세요.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGoogleSubmitting = false;
         });
       }
     }
@@ -190,6 +228,20 @@ class _LoginScreenState extends State<LoginScreen> {
                 PrimaryButtonWidget(
                   label: _isSubmitting ? '로그인 중...' : '로그인',
                   onPressed: _isSubmitting ? null : _submitLogin,
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: _isGoogleSubmitting ? null : _submitGoogleLogin,
+                  icon: _isGoogleSubmitting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.login_rounded),
+                  label: Text(
+                    _isGoogleSubmitting ? 'Google 로그인 중...' : 'Google로 로그인',
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Center(

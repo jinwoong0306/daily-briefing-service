@@ -30,10 +30,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _hour = 8;
   int _minute = 0;
   bool _isAm = true;
+  bool _isSubmitting = false;
 
   @override
   Widget build(BuildContext context) {
-    final bool canContinue = _selectedKeywords.length >= 3;
+    final bool canContinue = _selectedKeywords.length == 3;
 
     return Scaffold(
       body: SafeArea(
@@ -94,9 +95,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               _PreviewCard(keywords: _selectedKeywords.toList()),
               const SizedBox(height: 20),
               PrimaryButtonWidget(
-                label: '시작하기',
+                label: _isSubmitting ? '저장 중...' : '시작하기',
                 icon: Icons.arrow_forward_rounded,
-                onPressed: canContinue ? _onContinue : null,
+                onPressed: canContinue && !_isSubmitting ? _onContinue : null,
               ),
             ],
           ),
@@ -110,12 +111,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       if (_selectedKeywords.contains(keyword)) {
         _selectedKeywords.remove(keyword);
       } else {
+        if (_selectedKeywords.length >= 3) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('키워드는 최대 3개까지 선택할 수 있습니다.')),
+          );
+          return;
+        }
         _selectedKeywords.add(keyword);
       }
     });
   }
 
-  void _onContinue() {
+  Future<void> _onContinue() async {
     final OnboardingPreferencesModel preferences = OnboardingPreferencesModel(
       keywords: _selectedKeywords.toList(),
       hour: _hour,
@@ -123,7 +130,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       isAm: _isAm,
     );
 
+    setState(() => _isSubmitting = true);
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    if (!mounted) {
+      return;
+    }
+    setState(() => _isSubmitting = false);
     context.go('/briefing', extra: preferences);
+    // TODO: connect API
   }
 }
 

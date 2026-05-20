@@ -14,24 +14,105 @@ class BriefingFeedScreen extends StatefulWidget {
 }
 
 class _BriefingFeedScreenState extends State<BriefingFeedScreen> {
-  String _selectedCategory = '전체';
+  static const String _allCategory = '전체';
+  static const String _savedOnlyCategory = '저장됨';
+
+  String _selectedCategory = _allCategory;
+  String _searchQuery = '';
+  int _selectedNavIndex = 0;
+
+  final TextEditingController _searchController = TextEditingController();
+  final Set<String> _readIds = <String>{};
+  late List<BriefingModel> _briefings;
+
+  @override
+  void initState() {
+    super.initState();
+    _briefings = List<BriefingModel>.from(BriefingModel.mockBriefings);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   List<String> get _tabs {
-    final Set<String> categories = BriefingModel.mockBriefings
+    final Set<String> categories = _briefings
         .map((BriefingModel e) => e.category)
         .toSet();
-    return <String>['전체', ...categories];
+    return <String>[_allCategory, ...categories, _savedOnlyCategory];
     // TODO: connect API
   }
 
   List<BriefingModel> get _items {
-    if (_selectedCategory == '전체') {
-      return BriefingModel.mockBriefings;
+    Iterable<BriefingModel> filtered = _briefings;
+
+    if (_selectedNavIndex == 2 || _selectedCategory == _savedOnlyCategory) {
+      filtered = filtered.where((BriefingModel e) => e.isBookmarked);
+    } else if (_selectedCategory != _allCategory) {
+      filtered = filtered.where(
+        (BriefingModel e) => e.category == _selectedCategory,
+      );
     }
-    return BriefingModel.mockBriefings
-        .where((BriefingModel e) => e.category == _selectedCategory)
-        .toList();
+
+    if (_searchQuery.trim().isNotEmpty) {
+      final String query = _searchQuery.trim().toLowerCase();
+      filtered = filtered.where((BriefingModel e) {
+        return e.title.toLowerCase().contains(query) ||
+            e.summary.toLowerCase().contains(query) ||
+            e.category.toLowerCase().contains(query);
+      });
+    }
+
+    if (_selectedNavIndex == 1) {
+      final List<BriefingModel> sorted = filtered.toList()
+        ..sort((BriefingModel a, BriefingModel b) {
+          return b.publishedAt.compareTo(a.publishedAt);
+        });
+      return sorted;
+    }
+
+    return filtered.toList();
     // TODO: connect API
+  }
+
+  void _toggleBookmark(String id) {
+    setState(() {
+      _briefings = _briefings.map((BriefingModel item) {
+        if (item.id != id) {
+          return item;
+        }
+        return item.copyWith(isBookmarked: !item.isBookmarked);
+      }).toList();
+    });
+  }
+
+  void _markAsRead(String id) {
+    setState(() {
+      _readIds.add(id);
+    });
+  }
+
+  void _setFeedback(String id, FeedbackType type) {
+    final String next = type == FeedbackType.like ? 'like' : 'dislike';
+    setState(() {
+      _briefings = _briefings.map((BriefingModel item) {
+        if (item.id != id) {
+          return item;
+        }
+        return item.copyWith(feedbackType: next);
+      }).toList();
+    });
+  }
+
+  Future<void> _refreshFeed() async {
+    // TODO: connect API
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (!mounted) {
+      return;
+    }
+    setState(() {});
   }
 
   @override
@@ -77,6 +158,30 @@ class _BriefingFeedScreenState extends State<BriefingFeedScreen> {
                     context,
                   ).textTheme.headlineMedium?.copyWith(fontSize: 30),
                 ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _searchController,
+                  onChanged: (String value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
+                  decoration: InputDecoration(
+                    hintText: '브리핑 검색',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: _searchQuery.isEmpty
+                        ? null
+                        : IconButton(
+                            onPressed: () {
+                              setState(() {
+                                _searchQuery = '';
+                                _searchController.clear();
+                              });
+                            },
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                  ),
+                ),
                 const SizedBox(height: 14),
                 SizedBox(
                   height: 42,
@@ -93,7 +198,14 @@ class _BriefingFeedScreenState extends State<BriefingFeedScreen> {
                         selected: selected,
                         showCheckmark: false,
                         onSelected: (_) {
-                          setState(() => _selectedCategory = tab);
+                          setState(() {
+                            _selectedCategory = tab;
+                            if (tab == _savedOnlyCategory) {
+                              _selectedNavIndex = 2;
+                            } else if (_selectedNavIndex == 2) {
+                              _selectedNavIndex = 0;
+                            }
+                          });
                         },
                       );
                     },
@@ -106,33 +218,67 @@ class _BriefingFeedScreenState extends State<BriefingFeedScreen> {
           Expanded(
             child: _items.isEmpty
                 ? _EmptyFeed(category: _selectedCategory)
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                    itemCount: _items.length,
-                    separatorBuilder: (BuildContext context, int index) =>
-                        const SizedBox(height: 16),
-                    itemBuilder: (BuildContext context, int index) {
-                      final BriefingModel item = _items[index];
-                      return BriefingCard(
-                        item: item,
-                        onTap: () => context.go('/briefing/${item.id}'),
-                        onFeedback: (FeedbackType type) {
-                          final String text = type == FeedbackType.like
-                              ? '도움이 됐어요'
-                              : '취향이 아니에요';
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('피드백이 저장되었습니다: $text')),
-                          );
-                        },
-                      );
-                    },
+                : RefreshIndicator(
+                    onRefresh: _refreshFeed,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                      itemCount: _items.length,
+                      separatorBuilder: (BuildContext context, int index) =>
+                          const SizedBox(height: 16),
+                      itemBuilder: (BuildContext context, int index) {
+                        final BriefingModel item = _items[index];
+                        return BriefingCard(
+                          item: item,
+                          isRead: _readIds.contains(item.id),
+                          onTap: () {
+                            _markAsRead(item.id);
+                            context.go('/briefing/${item.id}', extra: item);
+                          },
+                          onBookmarkToggle: () => _toggleBookmark(item.id),
+                          onFeedback: (FeedbackType type) {
+                            _setFeedback(item.id, type);
+                            final String text = type == FeedbackType.like
+                                ? '도움이 됐어요'
+                                : '취향이 아니에요';
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('피드백이 저장되었습니다: $text')),
+                            );
+                          },
+                        );
+                      },
+                    ),
                   ),
           ),
         ],
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
+        selectedIndex: _selectedNavIndex,
         onDestinationSelected: (int index) {
+          if (index == 0) {
+            setState(() {
+              _selectedNavIndex = 0;
+              if (_selectedCategory == _savedOnlyCategory) {
+                _selectedCategory = _allCategory;
+              }
+            });
+            return;
+          }
+          if (index == 1) {
+            setState(() {
+              _selectedNavIndex = 1;
+              if (_selectedCategory == _savedOnlyCategory) {
+                _selectedCategory = _allCategory;
+              }
+            });
+            return;
+          }
+          if (index == 2) {
+            setState(() {
+              _selectedNavIndex = 2;
+              _selectedCategory = _savedOnlyCategory;
+            });
+            return;
+          }
           if (index == 3) {
             context.go('/settings');
           }
@@ -140,14 +286,8 @@ class _BriefingFeedScreenState extends State<BriefingFeedScreen> {
         destinations: const <NavigationDestination>[
           NavigationDestination(icon: Icon(Icons.home_rounded), label: '홈'),
           NavigationDestination(icon: Icon(Icons.explore_rounded), label: '탐색'),
-          NavigationDestination(
-            icon: Icon(Icons.bookmark_rounded),
-            label: '저장',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_rounded),
-            label: '설정',
-          ),
+          NavigationDestination(icon: Icon(Icons.bookmark_rounded), label: '저장'),
+          NavigationDestination(icon: Icon(Icons.settings_rounded), label: '설정'),
         ],
       ),
     );

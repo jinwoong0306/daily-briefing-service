@@ -11,8 +11,22 @@ import '../../features/settings/screens/settings_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/',
+    errorBuilder: (BuildContext context, GoRouterState state) {
+      return Scaffold(
+        body: Center(
+          child: Text(
+            '화면 경로를 찾을 수 없습니다.',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+      );
+    },
     routes: <RouteBase>[
+      GoRoute(
+        path: '/',
+        redirect: (BuildContext context, GoRouterState state) => '/login',
+      ),
       GoRoute(
         path: '/login',
         name: 'login',
@@ -46,7 +60,10 @@ class AppRouter {
         name: 'briefingDetail',
         builder: (BuildContext context, GoRouterState state) {
           final String id = state.pathParameters['id'] ?? '';
-          final BriefingModel? briefing = BriefingModel.findById(id);
+          final BriefingModel? briefing =
+              state.extra is BriefingModel
+              ? state.extra as BriefingModel
+              : BriefingModel.findById(id);
           return BriefingDetailScreen(briefing: briefing);
         },
       ),

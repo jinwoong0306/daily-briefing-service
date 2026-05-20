@@ -9,15 +9,28 @@ class BriefingCard extends StatelessWidget {
     required this.item,
     required this.onTap,
     required this.onFeedback,
+    required this.onBookmarkToggle,
+    this.isRead = false,
     super.key,
   });
 
   final BriefingModel item;
   final VoidCallback onTap;
   final ValueChanged<FeedbackType> onFeedback;
+  final VoidCallback onBookmarkToggle;
+  final bool isRead;
 
   @override
   Widget build(BuildContext context) {
+    final String originalUrl = (item.originalUrl ?? '').trim();
+    final List<String> imageCandidates = <String>[
+      item.imageUrl.trim(),
+      if (originalUrl.isNotEmpty)
+        'https://image.thum.io/get/width/1200/noanimate/$originalUrl',
+      'https://picsum.photos/seed/${item.id}/1200/675',
+      'https://placehold.co/1200x675/png?text=Daily+Briefing',
+    ].where((String url) => url.isNotEmpty).toSet().toList();
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(24),
@@ -35,20 +48,7 @@ class BriefingCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               child: AspectRatio(
                 aspectRatio: 16 / 9,
-                child: Image.network(
-                  item.imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder:
-                      (
-                        BuildContext context,
-                        Object error,
-                        StackTrace? stackTrace,
-                      ) => Container(
-                        color: AppColors.surfaceHigh,
-                        alignment: Alignment.center,
-                        child: const Icon(Icons.image_not_supported_rounded),
-                      ),
-                ),
+                child: _NetworkImageWithFallback(urls: imageCandidates),
               ),
             ),
             const SizedBox(height: 12),
@@ -65,6 +65,25 @@ class BriefingCard extends StatelessWidget {
                 ).textTheme.labelSmall?.copyWith(color: AppColors.primaryDark),
               ),
             ),
+            if (isRead) ...<Widget>[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceLow,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: AppColors.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Text(
+                  '읽음',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             Text(item.title, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
@@ -106,6 +125,15 @@ class BriefingCard extends StatelessWidget {
                 TextButton(onPressed: onTap, child: const Text('원문 보기')),
                 const Spacer(),
                 IconButton(
+                  onPressed: onBookmarkToggle,
+                  icon: Icon(
+                    item.isBookmarked
+                        ? Icons.bookmark_rounded
+                        : Icons.bookmark_border_rounded,
+                  ),
+                  tooltip: item.isBookmarked ? '저장 취소' : '저장',
+                ),
+                IconButton(
                   onPressed: () => onFeedback(FeedbackType.like),
                   icon: const Icon(Icons.thumb_up_alt_outlined),
                   tooltip: '도움이 됐어요',
@@ -120,6 +148,73 @@ class BriefingCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _NetworkImageWithFallback extends StatefulWidget {
+  const _NetworkImageWithFallback({required this.urls});
+
+  final List<String> urls;
+
+  @override
+  State<_NetworkImageWithFallback> createState() =>
+      _NetworkImageWithFallbackState();
+}
+
+class _NetworkImageWithFallbackState extends State<_NetworkImageWithFallback> {
+  int _index = 0;
+  bool _scheduledNext = false;
+
+  void _tryNextUrl() {
+    if (_scheduledNext || _index >= widget.urls.length - 1) {
+      return;
+    }
+    _scheduledNext = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _index += 1;
+        _scheduledNext = false;
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.urls.isEmpty) {
+      return Container(
+        color: AppColors.surfaceHigh,
+        alignment: Alignment.center,
+        child: const Icon(Icons.image_not_supported_rounded),
+      );
+    }
+
+    return Image.network(
+      widget.urls[_index],
+      fit: BoxFit.cover,
+      errorBuilder:
+          (BuildContext context, Object error, StackTrace? stackTrace) {
+            if (_index < widget.urls.length - 1) {
+              _tryNextUrl();
+              return Container(
+                color: AppColors.surfaceHigh,
+                alignment: Alignment.center,
+                child: const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              );
+            }
+            return Container(
+              color: AppColors.surfaceHigh,
+              alignment: Alignment.center,
+              child: const Icon(Icons.image_not_supported_rounded),
+            );
+          },
     );
   }
 }
