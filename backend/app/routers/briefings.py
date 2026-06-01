@@ -60,12 +60,104 @@ def _normalized_category_sql(column: str) -> str:
       when {value} in ('정치', 'politics', 'policy', 'government', '국회') then '정치'
       when {value} in ('엔터테인먼트', 'entertainment', '연예') then '엔터테인먼트'
       when {value} in ('스포츠', 'sports', 'sport', '축구', '야구', '농구', '배구') then '스포츠'
-      when {value} in ('헬스', 'health', 'medical', 'wellness', '건강', '의료') then '헬스'
+      when {value} in ('헬스', 'health', 'medical', 'wellness', '건강', '의료', '헬스케어', 'healthcare', 'health-care', '웰빙', '바이오', '질병') then '헬스'
       when {value} in ('아트&컬처', '아트', '컬처', 'art', 'arts', 'culture') then '아트&컬처'
-      when {value} in ('월드 뉴스', 'world news', 'world', 'international', 'global', '해외') then '월드 뉴스'
+      when {value} in (
+        '월드 뉴스', 'world news', 'world', 'international', 'global', '해외',
+        '월드뉴스', 'worldnews', 'world_news', '국제', '국제뉴스', '글로벌', '해외뉴스'
+      ) then '월드 뉴스'
       else nullif(trim(coalesce({column}, '')), '')
     end
     """
+
+
+def _canonical_category_label(raw: str | None) -> str:
+    """DB `user_keywords`와 Redis 묶음 블록의 `keyword`를 동일 축으로 맞출 때 사용."""
+    if raw is None:
+        return ""
+    trimmed = str(raw).strip()
+    if not trimmed:
+        return ""
+    value = trimmed.lower()
+    if value in (
+        "it/과학",
+        "it",
+        "과학",
+        "science",
+        "tech",
+        "technology",
+        "ai",
+        "인공지능",
+    ):
+        return "IT/과학"
+    if value in ("경제", "economy", "business", "finance", "financial", "market", "금융"):
+        return "경제"
+    if value in ("정치", "politics", "policy", "government", "국회"):
+        return "정치"
+    if value in ("엔터테인먼트", "entertainment", "연예"):
+        return "엔터테인먼트"
+    if value in ("스포츠", "sports", "sport", "축구", "야구", "농구", "배구"):
+        return "스포츠"
+    if value in (
+        "헬스",
+        "health",
+        "medical",
+        "wellness",
+        "건강",
+        "의료",
+        "헬스케어",
+        "healthcare",
+        "health-care",
+        "웰빙",
+        "바이오",
+        "질병",
+    ):
+        return "헬스"
+    if value in ("아트&컬처", "아트", "컬처", "art", "arts", "culture"):
+        return "아트&컬처"
+    if value in (
+        "월드 뉴스",
+        "world news",
+        "world",
+        "international",
+        "global",
+        "해외",
+        "월드뉴스",
+        "worldnews",
+        "world_news",
+        "국제",
+        "국제뉴스",
+        "글로벌",
+        "해외뉴스",
+    ):
+        return "월드 뉴스"
+    return trimmed
+
+
+def _filter_grouped_response_by_user_keywords(
+    grouped: BriefingsTodayGroupedResponse,
+    current_user: User,
+    db: Session,
+) -> BriefingsTodayGroupedResponse:
+    """Redis 묶음 브리핑이 과거 키워드 구성으로 남아 있어도, 현재 저장된 관심 키워드만 노출."""
+    keywords_table = _table_name("user_keywords", db)
+    rows = db.execute(
+        text(f"select keyword from {keywords_table} where user_id = :user_id"),
+        {"user_id": current_user.id},
+    ).scalars().all()
+    if not rows:
+        return grouped.model_copy(update={"user_id": str(current_user.id)})
+    allowed = {_canonical_category_label(k) for k in rows if isinstance(k, str) and k.strip()}
+    filtered = [
+        block
+        for block in grouped.keywords
+        if _canonical_category_label(block.keyword) in allowed
+    ]
+    return BriefingsTodayGroupedResponse(
+        briefing_date=grouped.briefing_date,
+        user_id=str(current_user.id),
+        keywords=filtered,
+    )
 
 
 def _build_highlights(source: str) -> list[str]:
@@ -476,7 +568,7 @@ def get_today_briefings(
         ),
         {
             "user_id": current_user.id,
-            "window_start": datetime.now(timezone.utc) - timedelta(days=3),
+            "window_start": datetime.now(timezone.utc) - timedelta(days=7),
         },
     ).mappings().all()
 
@@ -549,18 +641,113 @@ def get_today_briefings(
     return BriefingsTodayResponse(items=items)
 
 
+def _category_key_for_grouping(category: str) -> str:
+    key = _canonical_category_label(category)
+    return key if key else (str(category).strip() or "기타")
+
+
+def _build_grouped_from_today_items(
+    items: list[BriefingItemResponse],
+    current_user: User,
+    db: Session,
+    briefing_date: str,
+) -> BriefingsTodayGroupedResponse:
+    """Redis 묶음이 없을 때 `today`와 동일한 기사 목록을 카테고리 섹션으로 변환."""
+    keywords_table = _table_name("user_keywords", db)
+    preferred_rows = db.execute(
+        text(
+            """
+            select keyword from {keywords_table}
+            where user_id = :user_id
+            order by created_at asc
+            """.format(keywords_table=keywords_table)
+        ),
+        {"user_id": current_user.id},
+    ).scalars().all()
+
+    by_cat: dict[str, list[BriefingItemResponse]] = {}
+    for item in items:
+        key = _category_key_for_grouping(item.category)
+        by_cat.setdefault(key, []).append(item)
+
+    for key in by_cat:
+        by_cat[key].sort(key=lambda it: it.published_at, reverse=True)
+
+    ordered_keys: list[str] = []
+    seen: set[str] = set()
+    for raw_kw in preferred_rows:
+        if not isinstance(raw_kw, str) or not raw_kw.strip():
+            continue
+        ck = _canonical_category_label(raw_kw)
+        if ck in by_cat and ck not in seen:
+            ordered_keys.append(ck)
+            seen.add(ck)
+    for ck in sorted(by_cat.keys()):
+        if ck not in seen:
+            ordered_keys.append(ck)
+            seen.add(ck)
+
+    blocks: list[BriefingGroupedKeywordResponse] = []
+    for cat in ordered_keys:
+        cat_items = by_cat[cat]
+        first = cat_items[0]
+        summary_base = first.summary.strip() if first.summary.strip() else first.title
+        if len(summary_base) > 300:
+            summary_base = summary_base[:297].rstrip() + "..."
+        if len(cat_items) > 1:
+            section_summary = f"{summary_base} (관련 기사 {len(cat_items)}건)"
+        else:
+            section_summary = summary_base
+        headline = f"{cat} 이슈 요약"
+
+        gitems: list[BriefingGroupedKeywordItemResponse] = []
+        for it in cat_items:
+            gitems.append(
+                BriefingGroupedKeywordItemResponse(
+                    id=it.id,
+                    title=it.title,
+                    summary=it.summary,
+                    url=it.original_url,
+                    image_url=it.image_url,
+                    pub_date=it.published_at,
+                    source_type=it.source_name,
+                )
+            )
+        blocks.append(
+            BriefingGroupedKeywordResponse(
+                keyword=cat,
+                headline=headline,
+                summary=section_summary,
+                items=gitems,
+            )
+        )
+
+    return BriefingsTodayGroupedResponse(
+        briefing_date=briefing_date,
+        user_id=str(current_user.id),
+        keywords=blocks,
+    )
+
+
 @router.get("/today/grouped", response_model=BriefingsTodayGroupedResponse)
 def get_today_grouped_briefings(
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> BriefingsTodayGroupedResponse:
+    briefing_date = datetime.now(timezone.utc).date().isoformat()
     grouped = _load_redis_user_grouped(current_user=current_user)
     if grouped is not None:
-        return grouped
-    return BriefingsTodayGroupedResponse(
-        briefing_date=datetime.now(timezone.utc).date().isoformat(),
-        user_id=str(current_user.id),
-        keywords=[],
-    )
+        grouped = _filter_grouped_response_by_user_keywords(grouped, current_user, db)
+        if grouped.keywords:
+            return grouped
+    today = get_today_briefings(current_user=current_user, db=db)
+    if not today.items:
+        return BriefingsTodayGroupedResponse(
+            briefing_date=briefing_date,
+            user_id=str(current_user.id),
+            keywords=[],
+        )
+    return _build_grouped_from_today_items(today.items, current_user, db, briefing_date)
 
 
 @router.post("/{article_id}/feedback", response_model=BriefingActionResponse)

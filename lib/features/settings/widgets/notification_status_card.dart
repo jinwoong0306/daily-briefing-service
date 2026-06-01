@@ -7,12 +7,17 @@ class NotificationStatusCard extends StatelessWidget {
     required this.permissionStatus,
     required this.fcmLinked,
     required this.onRequestPermission,
+    this.exactAlarmStatus,
+    this.onOpenExactAlarmSettings,
     super.key,
   });
 
   final String permissionStatus;
   final bool fcmLinked;
   final VoidCallback onRequestPermission;
+  /// Android 전용. null이면 행을 숨김.
+  final String? exactAlarmStatus;
+  final VoidCallback? onOpenExactAlarmSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -39,12 +44,31 @@ class NotificationStatusCard extends StatelessWidget {
           const SizedBox(height: 12),
           _StatusRow(label: '권한 상태', value: permissionStatus),
           _StatusRow(label: '푸시 연동', value: fcmLinked ? '연결됨' : '미연결'),
+          if (exactAlarmStatus != null) ...<Widget>[
+            _StatusRow(label: '정확한 알람(Android)', value: exactAlarmStatus!),
+            const SizedBox(height: 4),
+            Text(
+              '전체 목록에 앱 이름이 없어도 됩니다. '
+              '미허용이면 아래에서 이 앱 전용 설정을 열어 주세요.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+          ],
           const SizedBox(height: 10),
           OutlinedButton.icon(
             onPressed: onRequestPermission,
             icon: const Icon(Icons.shield_outlined),
             label: const Text('알림 권한 요청'),
           ),
+          if (onOpenExactAlarmSettings != null) ...<Widget>[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: onOpenExactAlarmSettings,
+              icon: const Icon(Icons.alarm_rounded),
+              label: const Text('정확한 알람 설정 열기'),
+            ),
+          ],
         ],
       ),
     );

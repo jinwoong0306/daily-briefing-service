@@ -64,7 +64,7 @@ class KeywordsResponse(BaseModel):
 
 class NotificationSettingsUpdateRequest(BaseModel):
     enabled: bool | None = None
-    delivery_hour: int | None = Field(default=None, ge=0, le=23)
+    delivery_hour: int | None = Field(default=None, ge=7, le=12)
     delivery_minute: int | None = Field(default=None, ge=0, le=59)
     timezone: str | None = Field(default=None, min_length=1, max_length=64)
     expected_version: str | None = None

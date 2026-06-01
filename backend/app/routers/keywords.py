@@ -1,5 +1,6 @@
 import hashlib
 import logging
+from datetime import datetime, timezone
 from time import perf_counter
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -19,6 +20,36 @@ settings = get_settings()
 logger = logging.getLogger("uvicorn.error")
 keywords_cache = TTLCache(ttl_seconds=settings.cache_ttl_seconds)
 settings_update_metrics = SlidingWindowMetrics(maxlen=settings.api_settings_metrics_window_size)
+
+
+def _try_delete_redis_user_grouped_briefing(user_id: int) -> None:
+    """관심 키워드 변경 시 당일 사용자 묶음 캐시를 지워 오래된 섹션이 노출되지 않게 함."""
+    redis_url = (settings.redis_url or "").strip()
+    if not redis_url:
+        return
+    try:
+        from redis import Redis
+        from redis.exceptions import RedisError
+
+        url = redis_url
+        if url.startswith("redis://") and ".upstash.io" in url:
+            url = "rediss://" + url[len("redis://") :]
+        client = Redis.from_url(url, decode_responses=True)
+        briefing_date = datetime.now(timezone.utc).date().isoformat()
+        key = f"briefing:{briefing_date}:user:{user_id}"
+        client.delete(key)
+    except RedisError as exc:
+        logger.warning(
+            "Redis delete user grouped briefing failed user_id=%s error=%s",
+            user_id,
+            exc,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Unexpected error deleting user grouped briefing redis user_id=%s error=%s",
+            user_id,
+            exc,
+        )
 
 
 def _keywords_cache_key(user_id: int) -> str:
@@ -100,6 +131,7 @@ def update_my_keywords(
     db.commit()
     keywords_cache.delete(_keywords_cache_key(current_user.id))
     logger.warning("Settings cache invalidated (keywords) user_id=%s", current_user.id)
+    _try_delete_redis_user_grouped_briefing(current_user.id)
 
     elapsed_ms = (perf_counter() - started_at) * 1000
     avg_ms, p95_ms = settings_update_metrics.add(elapsed_ms)

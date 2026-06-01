@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/briefing_delivery_time.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../services/api_exception.dart';
 import '../../../services/keywords_api_service.dart';
@@ -52,6 +54,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   bool _isKeywordSaving = false;
+  String? _androidExactAlarmLabel;
 
   @override
   void initState() {
@@ -198,7 +201,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '24시간제로 원하는 수신 시간을 설정할 수 있습니다.',
+                  '브리핑은 밤 사이 수집된 뉴스를 바탕으로, 오전 ${BriefingDeliveryTime.minHour}시~${BriefingDeliveryTime.maxHour}시 사이에만 받을 수 있습니다.',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 12),
@@ -206,14 +209,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: <Widget>[
                     Expanded(
                       child: _DropdownTimeField(
-                        label: '시(00~23)',
-                        value: _settings.hour,
-                        items: List<int>.generate(24, (int i) => i),
+                        label:
+                            '시 (${BriefingDeliveryTime.minHour}~${BriefingDeliveryTime.maxHour})',
+                        value: BriefingDeliveryTime.normalizeHour(_settings.hour),
+                        items: BriefingDeliveryTime.allowedHours,
                         onChanged: (int value) {
                           setState(() {
                             _settings = _settings.copyWith(
-                              hour: value,
-                              isAm: value < 12,
+                              hour: BriefingDeliveryTime.normalizeHour(value),
+                              isAm: true,
                             );
                           });
                         },
@@ -242,7 +246,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             permissionStatus: _settings.permissionStatus,
             fcmLinked: _settings.fcmLinked,
             onRequestPermission: _requestNotificationPermission,
+            exactAlarmStatus: (!kIsWeb &&
+                    defaultTargetPlatform == TargetPlatform.android)
+                ? (_androidExactAlarmLabel ?? '확인 중…')
+                : null,
+            onOpenExactAlarmSettings: (!kIsWeb &&
+                    defaultTargetPlatform == TargetPlatform.android)
+                ? _openAndroidExactAlarmSettings
+                : null,
           ),
+          if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: _isLoading ? null : _runDiagnosticNotification,
+                child: const Text('30초 후 진단 알림(예약·리시버 테스트)'),
+              ),
+            ),
           const SizedBox(height: 20),
                 PrimaryButtonWidget(
                   label: _isSaving ? '저장 중...' : '설정 저장',
@@ -300,12 +320,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return;
       }
       setState(() {
+        final int hour = BriefingDeliveryTime.normalizeHour(dto.deliveryHour);
         _settings = _settings.copyWith(
           pushEnabled: dto.enabled,
           morningBriefingEnabled: dto.enabled,
-          hour: dto.deliveryHour,
+          hour: hour,
           minute: dto.deliveryMinute,
-          isAm: dto.deliveryHour < 12,
+          isAm: true,
           timezone: dto.timezone,
           version: dto.version,
         );
@@ -341,7 +362,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final NotificationSettingsDto dto = await _notificationApiService
           .updateSettings(
             enabled: _settings.pushEnabled && _settings.morningBriefingEnabled,
-            deliveryHour: _settings.hour,
+            deliveryHour: BriefingDeliveryTime.normalizeHour(_settings.hour),
             deliveryMinute: _settings.minute,
             timezone: _settings.timezone,
             expectedVersion: _settings.version.isEmpty ? null : _settings.version,
@@ -350,18 +371,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return;
       }
       setState(() {
+        final int hour = BriefingDeliveryTime.normalizeHour(dto.deliveryHour);
         _settings = _settings.copyWith(
           pushEnabled: dto.enabled,
           morningBriefingEnabled: dto.enabled,
-          hour: dto.deliveryHour,
+          hour: hour,
           minute: dto.deliveryMinute,
-          isAm: dto.deliveryHour < 12,
+          isAm: true,
           timezone: dto.timezone,
           version: dto.version,
         );
       });
-      await _syncLocalNotificationSchedule();
-      _showMessage('설정이 저장되었습니다.');
+      final bool localOk = await _syncLocalNotificationSchedule();
+      if (!mounted) {
+        return;
+      }
+      if (localOk) {
+        _showMessage('설정이 저장되었습니다.');
+      } else {
+        _showMessage(
+          '서버에는 저장되었으나 브리핑 알림 예약에 실패했습니다. '
+          '설정 → 앱 → 알림 및 정확한 알람(알람·리마인더)을 허용한 뒤 다시 저장해 주세요.',
+        );
+      }
     } on ApiException catch (error) {
       _showMessage(error.toString());
     } catch (_) {
@@ -414,8 +446,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _selectedKeywords = dto.keywords.toSet();
         _keywordsVersion = dto.version;
       });
-      await _syncLocalNotificationSchedule();
-      _showMessage('키워드가 저장되었습니다.');
+      final bool localOk = await _syncLocalNotificationSchedule();
+      if (!mounted) {
+        return;
+      }
+      if (localOk) {
+        _showMessage('키워드가 저장되었습니다.');
+      } else {
+        _showMessage(
+          '키워드는 저장되었으나 브리핑 알림 예약에 실패했습니다. '
+          '앱 알림·정확한 알람 권한을 확인해 주세요.',
+        );
+      }
     } on ApiException catch (error) {
       if (error.statusCode == 409) {
         await _loadKeywords();
@@ -445,17 +487,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _syncLocalNotificationSchedule() async {
+  Future<void> _openAndroidExactAlarmSettings() async {
     try {
-      await _localNotificationService.scheduleDailyBriefingNotification(
-        enabled: _settings.pushEnabled && _settings.morningBriefingEnabled,
-        hour: _settings.hour,
-        minute: _settings.minute,
-        keywords: _selectedKeywords.toList(),
-        timezoneName: _settings.timezone,
-      );
+      final AndroidExactAlarmPromptOutcome outcome =
+          await _localNotificationService
+              .promptAndroidExactAlarmSettingsIfNeeded();
+      if (!mounted) {
+        return;
+      }
       await _refreshLocalNotificationStatus();
-    } catch (_) {}
+      switch (outcome) {
+        case AndroidExactAlarmPromptOutcome.alreadyGranted:
+          _showMessage(
+            '정확한 알람은 이미 허용된 상태라 시스템 화면이 열리지 않습니다. '
+            '알림이 안 오면「설정 저장」과 예약 시각을 다시 확인해 주세요.',
+          );
+        case AndroidExactAlarmPromptOutcome.settingsOpened:
+          _showMessage(
+            '시스템 설정에서 허용했는지 확인한 뒤, 이 화면에서「설정 저장」을 다시 눌러 주세요.',
+          );
+        case AndroidExactAlarmPromptOutcome.skipped:
+          _showMessage('이 기기에서는 정확한 알람 설정을 열 수 없습니다.');
+      }
+    } catch (_) {
+      _showMessage('정확한 알람 설정 화면을 열지 못했습니다.');
+    }
+  }
+
+  Future<void> _runDiagnosticNotification() async {
+    final bool ok = await _localNotificationService
+        .scheduleDiagnosticNotificationInSeconds(30);
+    if (!mounted) {
+      return;
+    }
+    _showMessage(
+      ok
+          ? '30초 뒤 진단 알림이 예약되었습니다. 안 오면 에뮬레이터 재시작·실제 기기 테스트를 권장합니다.'
+          : '진단 알림 예약에 실패했습니다.',
+    );
+  }
+
+  Future<bool> _syncLocalNotificationSchedule() async {
+    try {
+      final bool ok =
+          await _localNotificationService.scheduleDailyBriefingNotification(
+            enabled: _settings.pushEnabled && _settings.morningBriefingEnabled,
+            hour: _settings.hour,
+            minute: _settings.minute,
+            keywords: _selectedKeywords.toList(),
+            timezoneName: _settings.timezone,
+          );
+      await _refreshLocalNotificationStatus();
+      return ok;
+    } catch (e, stackTrace) {
+      assert(() {
+        debugPrint('Local notification schedule failed: $e\n$stackTrace');
+        return true;
+      }());
+      if (mounted) {
+        await _refreshLocalNotificationStatus();
+      }
+      return false;
+    }
   }
 
   Future<void> _refreshLocalNotificationStatus() async {
@@ -463,6 +556,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await _localNotificationService.getPermissionStatus();
     final bool scheduled =
         await _localNotificationService.isDailyBriefingScheduled();
+    final String? exactLabel =
+        await _localNotificationService.getAndroidExactAlarmStatusLabel();
     if (!mounted) {
       return;
     }
@@ -471,6 +566,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         permissionStatus: permissionStatus,
         fcmLinked: scheduled,
       );
+      _androidExactAlarmLabel = exactLabel;
     });
   }
 

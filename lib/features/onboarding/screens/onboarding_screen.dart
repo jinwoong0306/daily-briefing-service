@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/briefing_delivery_time.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../services/api_exception.dart';
 import '../../../services/keywords_api_service.dart';
+import '../../../services/local_notification_service.dart';
+import '../../../services/notification_settings_api_service.dart';
 import '../../../shared/widgets/primary_button_widget.dart';
 import '../models/onboarding_preferences_model.dart';
 import '../widgets/keyword_chip_widget.dart';
@@ -34,8 +37,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   String? _keywordsVersion;
   int _hour = 8;
   int _minute = 0;
-  bool _isAm = true;
   bool _isSubmitting = false;
+  final NotificationSettingsApiService _notificationApiService =
+      NotificationSettingsApiService();
 
   @override
   void initState() {
@@ -54,13 +58,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(
-                'STEP 1 / 3',
-                style: Theme.of(
-                  context,
-                ).textTheme.labelSmall?.copyWith(color: AppColors.primary),
-              ),
-              const SizedBox(height: 12),
               Text(
                 '맞춤형 데일리 브리핑 설정',
                 style: Theme.of(context).textTheme.headlineMedium,
@@ -97,10 +94,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               TimeSelectorWidget(
                 hour: _hour,
                 minute: _minute,
-                isAm: _isAm,
-                onHourChanged: (int value) => setState(() => _hour = value),
+                onHourChanged: (int value) => setState(
+                  () => _hour = BriefingDeliveryTime.normalizeHour(value),
+                ),
                 onMinuteChanged: (int value) => setState(() => _minute = value),
-                onPeriodChanged: (bool value) => setState(() => _isAm = value),
               ),
               const SizedBox(height: 24),
               _PreviewCard(keywords: _selectedKeywords.toList()),
@@ -134,21 +131,49 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _onContinue() async {
+    final List<String> keywordsList = _selectedKeywords.toList();
     final OnboardingPreferencesModel preferences = OnboardingPreferencesModel(
-      keywords: _selectedKeywords.toList(),
-      hour: _hour,
+      keywords: keywordsList,
+      hour: BriefingDeliveryTime.normalizeHour(_hour),
       minute: _minute,
-      isAm: _isAm,
     );
 
     setState(() => _isSubmitting = true);
     try {
       final KeywordsResponseModel response = await _keywordsApiService
           .saveKeywords(
-            preferences.keywords,
+            keywordsList,
             expectedVersion: _keywordsVersion,
           );
       _keywordsVersion = response.version;
+      final int deliveryHour = BriefingDeliveryTime.normalizeHour(_hour);
+      try {
+        await _notificationApiService.updateSettings(
+          enabled: true,
+          deliveryHour: deliveryHour,
+          deliveryMinute: _minute,
+          timezone: 'Asia/Seoul',
+        );
+        await LocalNotificationService().scheduleDailyBriefingNotification(
+          enabled: true,
+          hour: deliveryHour,
+          minute: _minute,
+          keywords: response.keywords,
+          timezoneName: 'Asia/Seoul',
+        );
+      } on ApiException catch (error) {
+        if (mounted) {
+          _showMessage(
+            '키워드는 저장되었으나 알림/수신 시간 저장에 실패했습니다: $error',
+          );
+        }
+      } catch (_) {
+        if (mounted) {
+          _showMessage(
+            '키워드는 저장되었으나 기기 알림 예약에 실패했습니다. 설정에서 다시 저장해 주세요.',
+          );
+        }
+      }
       if (!mounted) {
         return;
       }

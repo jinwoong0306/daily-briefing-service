@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -313,6 +314,13 @@ def test_notification_settings_get_and_update(client: TestClient):
     assert empty_payload_body["success"] is False
     assert empty_payload_body["error"]["code"] == "VALIDATION_ERROR"
 
+    invalid_hour_response = client.put(
+        "/api/v1/users/notifications",
+        headers=headers,
+        json={"delivery_hour": 15, "delivery_minute": 0, "timezone": "Asia/Seoul"},
+    )
+    assert invalid_hour_response.status_code == 422
+
 
 def test_briefing_actions_return_404_for_missing_article(client: TestClient):
     register_response = register_user(client, email="briefing-action@example.com")
@@ -360,9 +368,10 @@ def test_briefings_today_applies_category_normalization(client: TestClient):
     )
     assert keywords_response.status_code == 200
 
-    insert_article(article_id=101, title="Sports headline", keyword="sports")
-    insert_article(article_id=102, title="Politics headline", keyword="politics")
-    insert_article(article_id=103, title="IT headline", keyword="IT/과학")
+    recent = datetime.now(timezone.utc).isoformat()
+    insert_article(article_id=101, title="Sports headline", keyword="sports", pub_date=recent)
+    insert_article(article_id=102, title="Politics headline", keyword="politics", pub_date=recent)
+    insert_article(article_id=103, title="IT headline", keyword="IT/과학", pub_date=recent)
 
     response = client.get("/api/v1/briefings/today", headers=headers)
     assert response.status_code == 200
@@ -441,7 +450,13 @@ class _FakeRedis:
                 '"url":"https://example.com/batch-redis-news","source_type":"Redis Batch",'
                 '"pub_date":"2026-05-09T09:00:00+09:00"}]}'
             )
-        if key == "briefing:2026-05-09:user:1":
+        if key == "briefing:2026-05-09:keyword:%EC%8A%A4%ED%8F%AC%EC%B8%A0":
+            return (
+                '{"keyword":"���","items":[{"title":"Batch Redis News","summary":"요약",'
+                '"url":"https://example.com/batch-redis-news","source_type":"Redis Batch",'
+                '"pub_date":"2026-05-09T09:00:00+09:00"}]}'
+            )
+        if key.startswith("briefing:") and key.endswith(":user:1"):
             return (
                 '{"briefing_date":"2026-05-09","user_id":"1","keywords":[{"keyword":"AI",'
                 '"headline":"AI 헤드라인","summary":"AI 요약","items":[{"id":"123","title":"AI 기사",'
@@ -524,6 +539,105 @@ def test_briefings_today_grouped_reads_user_briefing_from_redis(
     assert len(body["keywords"]) == 1
     assert body["keywords"][0]["keyword"] == "AI"
     assert body["keywords"][0]["items"][0]["title"] == "AI 기사"
+
+
+def test_briefings_today_grouped_filtered_to_saved_keywords(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch,
+):
+    from app.routers import briefings as briefings_router
+    from app.schemas import (
+        BriefingGroupedKeywordItemResponse,
+        BriefingGroupedKeywordResponse,
+        BriefingsTodayGroupedResponse,
+    )
+
+    register_response = register_user(client, email="grouped-filter@example.com")
+    assert register_response.status_code == 201
+    token = register_response.json()["access_token"]
+    user_id = register_response.json()["user"]["id"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    put_resp = client.put(
+        "/api/v1/users/keywords",
+        headers=headers,
+        json={"keywords": ["정치", "IT/과학"]},
+    )
+    assert put_resp.status_code == 200
+
+    stale = BriefingsTodayGroupedResponse(
+        briefing_date="2026-05-19",
+        user_id=str(user_id),
+        keywords=[
+            BriefingGroupedKeywordResponse(
+                keyword="정치",
+                headline="H1",
+                summary="S1",
+                items=[
+                    BriefingGroupedKeywordItemResponse(
+                        id="1",
+                        title="Politics News",
+                        summary="Sum",
+                        url="https://example.com/p",
+                        source_type="t",
+                    )
+                ],
+            ),
+            BriefingGroupedKeywordResponse(
+                keyword="스포츠",
+                headline="H2",
+                summary="S2",
+                items=[
+                    BriefingGroupedKeywordItemResponse(
+                        id="2",
+                        title="Sports News",
+                        summary="Sum",
+                        url="https://example.com/s",
+                        source_type="t",
+                    )
+                ],
+            ),
+        ],
+    )
+
+    monkeypatch.setattr(
+        briefings_router,
+        "_load_redis_user_grouped",
+        lambda current_user: stale,
+    )
+    response = client.get("/api/v1/briefings/today/grouped", headers=headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["keywords"]) == 1
+    assert body["keywords"][0]["keyword"] == "정치"
+    assert body["keywords"][0]["items"][0]["title"] == "Politics News"
+
+
+def test_briefings_today_grouped_falls_back_to_db_sections(client: TestClient):
+    """Redis 묶음 없을 때 today 기사를 카테고리 섹션으로 돌려준다."""
+    register_response = register_user(client, email="grouped-db-fallback@example.com")
+    assert register_response.status_code == 201
+    token = register_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    recent = datetime.now(timezone.utc).isoformat()
+
+    put_resp = client.put(
+        "/api/v1/users/keywords",
+        headers=headers,
+        json={"keywords": ["경제", "정치"]},
+    )
+    assert put_resp.status_code == 200
+
+    insert_article(article_id=301, title="Economy A", keyword="economy", pub_date=recent)
+    insert_article(article_id=302, title="Politics A", keyword="politics", pub_date=recent)
+
+    response = client.get("/api/v1/briefings/today/grouped", headers=headers)
+    assert response.status_code == 200
+    body = response.json()
+    kws = {b["keyword"] for b in body["keywords"]}
+    assert "경제" in kws
+    assert "정치" in kws
+    assert any(b.get("headline") for b in body["keywords"])
+    assert any(b.get("summary") for b in body["keywords"])
 
 
 def test_ingest_admin_email_restriction(client: TestClient):

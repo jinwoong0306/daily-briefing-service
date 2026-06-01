@@ -100,6 +100,12 @@ class _BriefingFeedScreenState extends State<BriefingFeedScreen> {
       return <String>['전체', ...ordered, ...remaining];
     }
 
+    if (_selectedNavIndex == 0 &&
+        _groupedSections.isEmpty &&
+        _preferredKeywordOrder.isNotEmpty) {
+      return <String>['전체', ..._preferredKeywordOrder];
+    }
+
     final List<String> categories = _briefings
         .map((BriefingModel e) => e.category)
         .toSet()

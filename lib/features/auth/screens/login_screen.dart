@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../services/api_exception.dart';
 import '../../../services/auth_api_service.dart';
+import '../../../services/keywords_api_service.dart';
 import '../../../services/supabase_oauth_service.dart';
 import '../../../shared/widgets/app_text_field_widget.dart';
 import '../../../shared/widgets/primary_button_widget.dart';
@@ -17,6 +18,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final AuthApiService _authApiService = AuthApiService();
+  final KeywordsApiService _keywordsApiService = KeywordsApiService();
   final SupabaseOAuthService _supabaseOAuthService = SupabaseOAuthService();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -113,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) {
         return;
       }
-      context.go('/onboarding');
+      await _navigateAfterAuth();
     } on ApiException catch (error) {
       _showMessage(error.toString());
     } catch (_) {
@@ -136,7 +138,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) {
         return;
       }
-      context.go('/onboarding');
+      await _navigateAfterAuth();
     } on ApiException catch (error) {
       _showMessage(error.toString());
     } catch (_) {
@@ -145,6 +147,31 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         setState(() => _isGoogleSubmitting = false);
       }
+    }
+  }
+
+  Future<void> _navigateAfterAuth() async {
+    try {
+      final KeywordsResponseModel keywords = await _keywordsApiService
+          .getKeywords();
+      if (!mounted) {
+        return;
+      }
+      if (keywords.keywords.isNotEmpty) {
+        context.go('/briefing');
+      } else {
+        context.go('/onboarding');
+      }
+    } on ApiException {
+      if (!mounted) {
+        return;
+      }
+      context.go('/briefing');
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      context.go('/briefing');
     }
   }
 

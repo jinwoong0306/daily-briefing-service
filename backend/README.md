@@ -276,6 +276,8 @@ curl -X PUT "http://127.0.0.1:8000/api/v1/users/notifications" \
   -d "{\"enabled\":true,\"delivery_hour\":8,\"delivery_minute\":30,\"timezone\":\"Asia/Seoul\"}"
 ```
 
+- `delivery_hour`는 **7~12(오전)** 만 허용됩니다. (밤 사이 수집된 뉴스를 오전 브리핑으로만 전달)
+
 ## 6) 토큰 발급/검증 로그 확인
 
 아래 명령으로 서버 로그에서 토큰 발급/검증 관련 로그를 확인할 수 있습니다.
