@@ -1,0 +1,269 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../core/constants/briefing_delivery_time.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../services/api_exception.dart';
+import '../../../services/keywords_api_service.dart';
+import '../../../services/local_notification_service.dart';
+import '../../../services/notification_settings_api_service.dart';
+import '../../../shared/widgets/primary_button_widget.dart';
+import '../models/onboarding_preferences_model.dart';
+import '../widgets/keyword_chip_widget.dart';
+import '../widgets/time_selector_widget.dart';
+
+class OnboardingScreen extends StatefulWidget {
+  const OnboardingScreen({super.key});
+
+  @override
+  State<OnboardingScreen> createState() => _OnboardingScreenState();
+}
+
+class _OnboardingScreenState extends State<OnboardingScreen> {
+  final KeywordsApiService _keywordsApiService = KeywordsApiService();
+
+  static const List<String> _allKeywords = <String>[
+    'IT/과학',
+    '경제',
+    '정치',
+    '엔터테인먼트',
+    '스포츠',
+    '헬스',
+    '아트&컬처',
+    '월드 뉴스',
+  ];
+
+  final Set<String> _selectedKeywords = <String>{'IT/과학', '엔터테인먼트'};
+  String? _keywordsVersion;
+  int _hour = 8;
+  int _minute = 0;
+  bool _isSubmitting = false;
+  final NotificationSettingsApiService _notificationApiService =
+      NotificationSettingsApiService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedKeywords();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool canContinue = _selectedKeywords.length == 3;
+
+    return Scaffold(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                '맞춤형 데일리 브리핑 설정',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                '관심 주제를 선택하면 아침마다 핵심 뉴스만 간결하게 전달해 드립니다.',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 28),
+              Row(
+                children: <Widget>[
+                  Text('관심 키워드', style: Theme.of(context).textTheme.titleLarge),
+                  const Spacer(),
+                  Text(
+                    '최소 3개 선택',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 10,
+                children: _allKeywords.map((String keyword) {
+                  return KeywordChipWidget(
+                    label: keyword,
+                    isSelected: _selectedKeywords.contains(keyword),
+                    onTap: () => _toggleKeyword(keyword),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 24),
+              TimeSelectorWidget(
+                hour: _hour,
+                minute: _minute,
+                onHourChanged: (int value) => setState(
+                  () => _hour = BriefingDeliveryTime.normalizeHour(value),
+                ),
+                onMinuteChanged: (int value) => setState(() => _minute = value),
+              ),
+              const SizedBox(height: 24),
+              _PreviewCard(keywords: _selectedKeywords.toList()),
+              const SizedBox(height: 20),
+              PrimaryButtonWidget(
+                label: _isSubmitting ? '저장 중...' : '시작하기',
+                icon: Icons.arrow_forward_rounded,
+                onPressed: canContinue && !_isSubmitting ? _onContinue : null,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _toggleKeyword(String keyword) {
+    setState(() {
+      if (_selectedKeywords.contains(keyword)) {
+        _selectedKeywords.remove(keyword);
+      } else {
+        if (_selectedKeywords.length >= 3) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('키워드는 최대 3개까지 선택할 수 있습니다.')));
+          return;
+        }
+        _selectedKeywords.add(keyword);
+      }
+    });
+  }
+
+  Future<void> _onContinue() async {
+    final List<String> keywordsList = _selectedKeywords.toList();
+    final OnboardingPreferencesModel preferences = OnboardingPreferencesModel(
+      keywords: keywordsList,
+      hour: BriefingDeliveryTime.normalizeHour(_hour),
+      minute: _minute,
+    );
+
+    setState(() => _isSubmitting = true);
+    try {
+      final KeywordsResponseModel response = await _keywordsApiService
+          .saveKeywords(
+            keywordsList,
+            expectedVersion: _keywordsVersion,
+          );
+      _keywordsVersion = response.version;
+      final int deliveryHour = BriefingDeliveryTime.normalizeHour(_hour);
+      try {
+        await _notificationApiService.updateSettings(
+          enabled: true,
+          deliveryHour: deliveryHour,
+          deliveryMinute: _minute,
+          timezone: 'Asia/Seoul',
+        );
+        await LocalNotificationService().scheduleDailyBriefingNotification(
+          enabled: true,
+          hour: deliveryHour,
+          minute: _minute,
+          keywords: response.keywords,
+          timezoneName: 'Asia/Seoul',
+        );
+      } on ApiException catch (error) {
+        if (mounted) {
+          _showMessage(
+            '키워드는 저장되었으나 알림/수신 시간 저장에 실패했습니다: $error',
+          );
+        }
+      } catch (_) {
+        if (mounted) {
+          _showMessage(
+            '키워드는 저장되었으나 기기 알림 예약에 실패했습니다. 설정에서 다시 저장해 주세요.',
+          );
+        }
+      }
+      if (!mounted) {
+        return;
+      }
+      context.go('/briefing', extra: preferences);
+    } on ApiException catch (error) {
+      _showMessage(error.toString());
+    } catch (_) {
+      _showMessage('키워드 저장 중 오류가 발생했습니다.');
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  Future<void> _loadSavedKeywords() async {
+    try {
+      final KeywordsResponseModel response = await _keywordsApiService
+          .getKeywords();
+      if (!mounted) {
+        return;
+      }
+      if (response.keywords.isNotEmpty) {
+        setState(() {
+          _selectedKeywords
+            ..clear()
+            ..addAll(response.keywords);
+          _keywordsVersion = response.version;
+        });
+      } else {
+        _keywordsVersion = response.version;
+      }
+    } on ApiException {
+      // onboarding 첫 진입에서 조회 실패는 치명적이지 않으므로 무시
+    } catch (_) {}
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _PreviewCard extends StatelessWidget {
+  const _PreviewCard({required this.keywords});
+
+  final List<String> keywords;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[AppColors.primaryDark, AppColors.primaryContainer],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            '라이브 프리뷰',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Colors.white.withValues(alpha: 0.8),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '내일 아침 브리핑에 포함될 주제',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(color: Colors.white),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            keywords.join(' · '),
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: Colors.white.withValues(alpha: 0.92),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
