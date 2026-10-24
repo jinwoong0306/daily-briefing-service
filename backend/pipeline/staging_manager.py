@@ -9,6 +9,7 @@
 import json
 import os
 import shutil
+import tempfile
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -109,6 +110,15 @@ def _article_key(article: dict) -> str:
     return f"title:{title}|pub:{pub_date}|source:{source}"
 
 
+def article_keywords(article: dict) -> list[str]:
+    """Read ordered associations, including legacy scalar-only articles."""
+    values = [article.get("keyword"), *(article.get("keywords") or [])]
+    return list(dict.fromkeys(
+        value.strip() for value in values
+        if isinstance(value, str) and value.strip()
+    ))
+
+
 def _merge_article(old: dict, new: dict) -> tuple[dict, bool]:
     """
     두 기사 레코드를 병합.
@@ -130,6 +140,15 @@ def _merge_article(old: dict, new: dict) -> tuple[dict, bool]:
         for k, v in new.items():
             if k not in merged or merged[k] in ("", None):
                 merged[k] = v
+
+    # Body replacement must not replace the accumulated keyword associations.
+    keywords = list(dict.fromkeys(
+        article_keywords(old) + article_keywords(new)
+    ))
+    if keywords:
+        merged["keyword"] = keywords[0]
+        if len(keywords) > 1 or "keywords" in old or "keywords" in new:
+            merged["keywords"] = keywords
 
     return merged, replaced
 
@@ -186,8 +205,26 @@ def append_articles_to_staging(
     data["meta"].setdefault("collection_window_kst", "20:00-06:00")
 
     path = get_staging_path(briefing_date, staging_dir)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=staging_dir, delete=False
+        ) as f:
+            temp_path = f.name
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temp_path, path)
+        temp_path = None
+        if os.name != "nt":
+            directory_fd = os.open(staging_dir, os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+    finally:
+        if temp_path is not None:
+            os.unlink(temp_path)
 
     return {
         "path": path,

@@ -10,10 +10,16 @@
 """
 
 import os
-import glob
 import json
 import logging
 import numpy as np
+from staging_manager import article_keywords
+
+from briefing_candidates import (
+    edition_window,
+    publication_in_edition,
+    validate_candidate_batch,
+)
 
 try:
     from supabase_uploader import upload_clustered_result_to_supabase
@@ -78,57 +84,41 @@ DISTANCE_THRESHOLD = 1.0 - SIMILARITY_THRESHOLD
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 
-def load_valid_articles(cache_dir: str = "cache") -> list[dict]:
-    """
-    [1단계: 데이터 로드 및 결측치 필터링]
-    캐시 폴더에서 기사를 읽어오되, 본문(fullText)이 비어있는 결측치는 완전 배제합니다.
-    """
+def load_valid_articles(source: dict) -> list[dict]:
+    """Normalize only the supplied edition snapshot, never scan cache files."""
+    briefing_date = source.get("meta", {}).get("briefing_date")
+    if not briefing_date:
+        raise ValueError("Clustering input requires an explicit briefing_date")
+    edition_window(briefing_date)
+    if not source.get("articles"):
+        raise ValueError(f"No source articles for edition {briefing_date}")
     articles = []
-
-    if not os.path.exists(cache_dir):
-        logging.warning(f"캐시 폴더 '{cache_dir}'가 존재하지 않습니다.")
-        return articles
-
-    json_files = glob.glob(os.path.join(cache_dir, "*.json"))
-
-    for file_path in json_files:
-        if "clustered_result" in file_path or "similarity_debug" in file_path:
+    for item in source["articles"]:
+        title = str(item.get("title") or "").strip()
+        content = str(
+            item.get("fullText") or item.get("content") or ""
+        ).strip()
+        link = str(item.get("link") or item.get("url") or "").strip()
+        published = item.get("pubDate") or item.get("pub_date") or ""
+        if not title or not content or not link:
             continue
-
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-
-            # 메타데이터에서 키워드와 소스(출처) 추출
-            meta = data.get("meta", {})
-            keyword = meta.get("keyword", "기타")
-            source_name = meta.get("source", "unknown")
-
-            items = data.get("articles", data.get("items", []))
-
-            for item in items:
-                title = item.get("title", "").strip()
-                # 결측치 방어: fullText가 null이거나 빈 문자열인지 확인
-                content = item.get("fullText", "").strip()
-                link = item.get("link", "").strip()
-
-                # [요구사항 반영] 본문(content)이 아예 없는 데이터는 제외 (Drop)
-                if not content:
-                    continue
-
-                if title and link:
-                    articles.append({
-                        "keyword": item.get("keyword", keyword),  # 개별 뉴스 아이템에 키워드 정보가 있으면 우선 적용
-                        "title": title,
-                        "content": content,
-                        "link": link,
-                        "pubDate": item.get("pubDate", ""),
-                        "source": item.get("source_type", item.get("source", source_name))  # 통합 크롤러의 source_type 우선 적용
-                    })
-        except Exception as e:
-            logging.error(f"파일 파싱 에러 ({file_path}): {e}")
-
-    logging.info(f"결측치가 제거된 유효한 기사 총 {len(articles)}개를 로드했습니다.")
+        if publication_in_edition(published, briefing_date):
+            keywords = article_keywords(item) or ["기타"]
+            articles.append({
+                "keyword": keywords[0],
+                "keywords": keywords,
+                "title": title,
+                "content": content,
+                "link": link,
+                "pubDate": published,
+                "source": (
+                    item.get("source_type") or item.get("source") or "unknown"
+                ),
+            })
+    if not articles:
+        raise ValueError(
+            f"No valid source articles for edition {briefing_date}"
+        )
     return articles
 
 
@@ -336,8 +326,8 @@ def cluster_and_extract(articles: list[dict], cache_dir: str = "cache") -> list[
     logging.info(f"{len(texts_to_embed)}건의 기사에 대해 임베딩을 요청합니다...")
 
     vectors = get_embeddings(texts_to_embed)
-    if len(vectors) == 0:
-        return []
+    if len(vectors) != len(articles):
+        raise RuntimeError("Clustering embeddings missing or incomplete")
 
     # 3. AgglomerativeClustering
     # 요구사항: metric='cosine', linkage='average', distance_threshold는 파라미터 적용
@@ -351,8 +341,7 @@ def cluster_and_extract(articles: list[dict], cache_dir: str = "cache") -> list[
         )
         model.fit(vectors)
     except Exception as e:
-        logging.error(f"클러스터링 에러: {e}")
-        return []
+        raise RuntimeError("Article clustering failed") from e
 
     labels = model.labels_
 
@@ -376,30 +365,51 @@ def cluster_and_extract(articles: list[dict], cache_dir: str = "cache") -> list[
     return representatives
 
 
-def run_pipeline():
-    """메인 실행 파이프라인"""
-    cache_dir = "cache"
+def run_pipeline(source: dict, cache_dir: str = "cache") -> dict:
+    """Return fresh edition representatives, never read previous reports."""
     output_filename = "clustered_result.json"
 
     # 1. 데이터 로드 (결측치 제외)
-    articles = load_valid_articles(cache_dir)
-    if not articles:
-        logging.warning("유효한 기사가 없습니다. 종료합니다.")
-        return
+    articles = load_valid_articles(source)
+    os.makedirs(cache_dir, exist_ok=True)
 
-    # 2 & 3 & 4. 임베딩, 클러스터링, 디버깅, 대표추출
-    reps = cluster_and_extract(articles, cache_dir)
-    if not reps:
-        logging.warning("추출된 대표 기사가 없습니다.")
-        return
-
-    # 5. 카테고리(키워드 주제)별로 결과 그룹화
+    # Preserve each keyword's candidate pool when the same event matches several.
+    by_keyword = {}
+    for article in articles:
+        for keyword in article["keywords"]:
+            by_keyword.setdefault(keyword, []).append({
+                **article, "keyword": keyword,
+            })
     grouped_result = {}
-    for rep in reps:
-        kw = rep.get("keyword", "기타")
-        if kw not in grouped_result:
-            grouped_result[kw] = []
-        grouped_result[kw].append(rep)
+    for keyword, keyword_articles in by_keyword.items():
+        reps = cluster_and_extract(keyword_articles, cache_dir)
+        if not reps:
+            raise RuntimeError(
+                f"No representatives returned for keyword={keyword}"
+            )
+        grouped_result[keyword] = reps
+
+    batch = {
+        "briefing_date": source["meta"]["briefing_date"],
+        "status": "success",
+        "candidate_source": "cluster_representatives",
+        "source_count": len(articles),
+        "articles": [
+            {
+                # URL is the source identity before a DB-generated ID exists.
+                "id": rep["link"],
+                "keyword": keyword,
+                "title": rep["title"],
+                "url": rep["link"],
+                "content": rep["content"],
+                "pub_date": rep["pubDate"],
+                "source_type": rep["source"],
+            }
+            for keyword, reps in grouped_result.items()
+            for rep in reps
+        ],
+    }
+    validate_candidate_batch(batch, source["meta"]["briefing_date"])
 
     # 6. 최종 결과 저장
     out_path = os.path.join(cache_dir, output_filename)
@@ -415,31 +425,26 @@ def run_pipeline():
 
         logging.info(f"저장 위치 -> {out_path}")
     except Exception as e:
-        logging.error(f"결과 저장 실패: {e}")
-        return
+        raise RuntimeError("Cluster report could not be saved") from e
 
-    # 7. Supabase 업로드 (환경변수 미설정 시 자동 스킵)
+    # Retain the existing optional DB report upload, but propagate failures.
+    # Candidate selection does not query this table; the orchestrator also
+    # uploads all raw articles, including non-representatives and full bodies.
     if upload_clustered_result_to_supabase is None:
-        logging.warning("supabase_uploader 모듈을 찾지 못해 clustered_result DB 업로드를 건너뜁니다.")
-        return
-
-    try:
+        logging.warning("Clustered DB upload unavailable; using in-memory batch")
+    else:
         upload_result = upload_clustered_result_to_supabase(grouped_result)
-        if upload_result.get("enabled"):
-            logging.info(
-                "🗄️ clustered_result Supabase 업로드 완료: "
-                f"{upload_result.get('uploaded', 0)}건 "
-                f"(준비된 row: {upload_result.get('prepared', 0)}건, "
-                f"table: {upload_result.get('table', 'unknown')})"
-            )
-        else:
-            logging.info(
-                "ℹ️ SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY가 없어 "
-                "clustered_result DB 업로드를 건너뜁니다."
-            )
-    except Exception as e:
-        logging.error(f"clustered_result Supabase 업로드 실패: {e}")
+        logging.info("Clustered DB upload result: %s", upload_result)
+    return batch
 
 
 if __name__ == "__main__":
-    run_pipeline()
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Cluster an explicit edition snapshot"
+    )
+    parser.add_argument("input", help="JSON with meta.briefing_date and articles")
+    args = parser.parse_args()
+    with open(args.input, encoding="utf-8") as stream:
+        run_pipeline(json.load(stream))

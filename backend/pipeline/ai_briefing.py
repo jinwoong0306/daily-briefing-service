@@ -15,6 +15,7 @@ import pytz
 import requests
 from bs4 import BeautifulSoup
 from dateutil import parser as date_parser
+from briefing_candidates import edition_window, validate_candidate_batch
 
 try:
     from openai import OpenAI
@@ -393,7 +394,20 @@ class PlaceholderBriefingAI:
         }
 
 
-def fetch_recent_articles_for_keyword(keyword: str, limit: int, table_name: str = "articles") -> list[dict]:
+def fetch_recent_articles_for_keyword(
+    keyword: str,
+    limit: int,
+    briefing_date: str,
+    table_name: str = "articles",
+) -> list[dict]:
+    """Fetch one edition's overnight publication window, not the latest DB rows.
+
+    The KST collection schedule assigns the previous evening to briefing_date:
+    [D-1 20:00, D 06:00], inclusive like the crawler's time filter. Honor the
+    same collection-hour overrides, and anchor both bounds to the requested
+    edition so historical reruns cannot select newer articles.
+    """
+    window_start, window_end = edition_window(briefing_date)
     client = get_supabase_client()
     if not client:
         return []
@@ -403,6 +417,9 @@ def fetch_recent_articles_for_keyword(keyword: str, limit: int, table_name: str 
             client.table(table_name)
             .select("id, keyword, title, url, content, pub_date, source_type")
             .eq("keyword", keyword)
+            .neq("content", "")
+            .gte("pub_date", window_start.isoformat())
+            .lte("pub_date", window_end.isoformat())
             .order("pub_date", desc=True)
             .limit(limit)
             .execute()
@@ -423,6 +440,7 @@ def build_keyword_briefing(
     keyword: str,
     briefing_date: str,
     ai: Optional[BriefingAI] = None,
+    candidate_batch: Optional[dict] = None,
 ) -> dict:
     article_table = os.environ.get("SUPABASE_ARTICLES_TABLE", "articles").strip() or "articles"
     candidate_limit = _env_int("BRIEFING_CANDIDATE_LIMIT", 30)
@@ -430,9 +448,24 @@ def build_keyword_briefing(
     max_items = _env_int("BRIEFING_MAX_ITEMS_PER_KEYWORD", 5)
     selection_preview_chars = _env_int("BRIEFING_SELECTION_PREVIEW_CHARS", 600)
     summary_content_chars = _env_int("BRIEFING_SUMMARY_CONTENT_CHARS", 4000)
+    if candidate_batch is None:
+        # Retain the raw-query API for explicit callers, not generation.
+        candidate_source = "raw_articles"
+        articles = fetch_recent_articles_for_keyword(
+            keyword, candidate_limit, briefing_date, article_table
+        )
+    else:
+        candidates = validate_candidate_batch(candidate_batch, briefing_date)
+        candidate_source = candidate_batch["candidate_source"]
+        articles = sorted(
+            [
+                article for article in candidates
+                if article["keyword"] == keyword
+            ],
+            key=lambda article: _parse_pub_date(article["pub_date"]),
+            reverse=True,
+        )[:candidate_limit]
     ai = ai or OpenAIBriefingAI()
-
-    articles = fetch_recent_articles_for_keyword(keyword, candidate_limit, article_table)
     articles_by_id = {str(article.get("id")): article for article in articles}
 
     # Stage 1: cheap selection input. Real AI should only see titles + previews here.
@@ -459,6 +492,7 @@ def build_keyword_briefing(
         "keyword": keyword,
         "generated_at": datetime.now(KST).isoformat(),
         "candidate_count": len(articles),
+        "candidate_source": candidate_source,
         "selected_count": len(selected),
         "ai_model_status": ai.model_status,
         "ai_model": ai.model,
@@ -477,8 +511,11 @@ def build_keyword_briefing(
     }
 
 
-def generate_and_cache_briefings(briefing_date: Optional[str] = None) -> dict:
+def generate_and_cache_briefings(
+    briefing_date: Optional[str] = None, *, candidate_batch: dict
+) -> dict:
     briefing_date = briefing_date or datetime.now(KST).date().isoformat()
+    validate_candidate_batch(candidate_batch, briefing_date)
     keyword_table = os.environ.get("SUPABASE_USER_KEYWORDS_TABLE", "user_keywords").strip() or "user_keywords"
     ttl_seconds = _env_int("BRIEFING_REDIS_TTL_SECONDS", 172800)
 
@@ -509,7 +546,9 @@ def generate_and_cache_briefings(briefing_date: Optional[str] = None) -> dict:
     keyword_briefings = {}
     redis_saved = 0
     for keyword in keywords:
-        payload = build_keyword_briefing(keyword, briefing_date)
+        payload = build_keyword_briefing(
+            keyword, briefing_date, candidate_batch=candidate_batch
+        )
         keyword_briefings[keyword] = payload
         key = build_keyword_briefing_key(briefing_date, keyword)
         result = set_json(key, payload, ttl_seconds)
@@ -536,6 +575,7 @@ def generate_and_cache_briefings(briefing_date: Optional[str] = None) -> dict:
 
     return {
         "briefing_date": briefing_date,
+        "candidate_source": candidate_batch["candidate_source"],
         "subscriptions": len(subscriptions),
         "keywords": len(keywords),
         "users": len(user_keywords),

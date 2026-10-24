@@ -57,7 +57,11 @@ def _normalize_pub_date(pub_date: str) -> Optional[str]:
 
 
 def _build_article_rows(news_list: list[dict]) -> list[dict]:
-    """크롤러 기사 형식을 Supabase rows 형식으로 변환합니다."""
+    """Map raw bodies to the existing scalar-keyword, unique-URL schema.
+
+    Full keyword associations remain in staging; expanding rows here would
+    violate the URL conflict contract and cannot persist multiple keywords.
+    """
     rows = []
 
     for news in news_list:
@@ -245,6 +249,21 @@ def upload_clustered_result_to_supabase(grouped_result: dict[str, list[dict]], b
     default_table = os.environ.get("SUPABASE_ARTICLES_TABLE", "articles").strip() or "articles"
     table_name = os.environ.get("SUPABASE_CLUSTERED_TABLE", default_table).strip() or default_table
     conflict_col = os.environ.get("SUPABASE_CLUSTERED_CONFLICT_COL", "url").strip() or "url"
+
+    if conflict_col == "url":
+        # The same representative may belong to several keyword pools. A
+        # single PostgreSQL upsert cannot affect the same URL more than once.
+        # Keep the first scalar association only for this legacy DB report;
+        # the edition candidate batch and staging retain every association.
+        by_url = {}
+        for row in rows:
+            by_url.setdefault(row["url"], row)
+        if len(by_url) < len(rows):
+            logging.warning(
+                "URL-keyed clustered upload retains one keyword per article; "
+                "use staging/edition candidates for full keyword associations"
+            )
+        rows = list(by_url.values())
 
     uploaded = 0
     for i in range(0, len(rows), batch_size):

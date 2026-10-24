@@ -18,7 +18,8 @@ from urllib.parse import quote
 import pytz
 from datetime import datetime, timedelta
 from dateutil import parser as date_parser
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple
+from staging_manager import article_keywords
 
 # 앞서 만든 강력한 스크래퍼 재활용 (없으면 단순 BS4 폴백)
 try:
@@ -165,8 +166,8 @@ def deduplicate_news(news_list: list[dict]) -> list[dict]:
     [중복 기사 제거]
     3개의 소스에서 합쳐진 기사 중, 원본 URL(link)이나 제목(title)이 완전히 동일하면 제거합니다.
     """
-    seen_links = set()
-    seen_titles = set()
+    seen_links = {}
+    seen_titles = {}
     deduped = []
 
     for news in news_list:
@@ -177,11 +178,36 @@ def deduplicate_news(news_list: list[dict]) -> list[dict]:
         if not link or not title:
             continue
 
-        if link not in seen_links and title not in seen_titles:
-            seen_links.add(link)
-            seen_titles.add(title)
-            deduped.append(news)
+        matches = {
+            index for index in (seen_links.get(link), seen_titles.get(title))
+            if index is not None
+        }
+        if not matches:
+            index = len(deduped)
+            deduped.append(dict(news))
+        else:
+            # A new hit can bridge two previously separate URL/title groups.
+            # Keep the first source body and redirect all aliases to it.
+            index = min(matches)
+            sources = [deduped[match] for match in sorted(matches)] + [news]
+            keywords = list(dict.fromkeys(
+                keyword for source in sources
+                for keyword in article_keywords(source)
+            ))
+            if keywords:
+                deduped[index]["keyword"] = keywords[0]
+                if len(keywords) > 1 or any("keywords" in s for s in sources):
+                    deduped[index]["keywords"] = keywords
+            for duplicate in matches - {index}:
+                deduped[duplicate] = None
+                for aliases in (seen_links, seen_titles):
+                    for alias, match in aliases.items():
+                        if match == duplicate:
+                            aliases[alias] = index
+        seen_links[link] = index
+        seen_titles[title] = index
 
+    deduped = [news for news in deduped if news is not None]
     logging.info(f"✨ 중복 제거 결과: 수집된 전체 {len(news_list)}건 -> {len(deduped)}건 ({(len(news_list) - len(deduped))}건 중복 제거됨)")
     return deduped
 
@@ -323,8 +349,9 @@ def run_pipeline(
     out_path: Optional[str] = "cache/crawled_merged_news.json",
     upload_to_db: bool = True,
     record_run: bool = True,
+    on_collected: Optional[Callable[[dict], None]] = None,
 ) -> dict:
-    """여러 지정한 키워드로 통합 파이프라인을 실행합니다."""
+    """Run collection and its optional persistence callback before recording success."""
     logging.info("=" * 60)
     logging.info(f"🚀 핵심 뉴스 통합 크롤링 묶음 파이프라인 시작 (키워드: {', '.join(keywords)})")
     logging.info("=" * 60)
@@ -483,6 +510,9 @@ def run_pipeline(
                     )
         else:
             logging.info("🗄️ 이번 실행은 upload_to_db=False 설정으로 DB 업로드를 건너뜁니다.")
+
+        if on_collected is not None:
+            on_collected(final_data)
 
         if record_run and finish_pipeline_run is not None:
             finish_pipeline_run(run_id=run_id, status="success")

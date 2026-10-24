@@ -26,6 +26,7 @@ from datetime import datetime
 
 import pytz
 from dateutil import parser as date_parser
+from briefing_candidates import validate_candidate_batch
 
 from unified_crawler import (
     run_pipeline as run_unified_pipeline,
@@ -135,40 +136,42 @@ def run_collect_mode(config: dict) -> None:
 
     collect_pipeline_name = os.environ.get("COLLECTOR_PIPELINE_NAME", "collector_unified").strip() or "collector_unified"
 
+    def persist_collection(collected: dict) -> None:
+        articles = collected.get("articles", [])
+        meta = collected.get("meta", {})
+        window_start = _parse_window_dt(meta["window_start_kst"])
+        window_end = _parse_window_dt(meta["window_end_kst"])
+
+        start_hour = int(os.environ.get("PIPELINE_COLLECTION_START_HOUR", "20"))
+        end_hour = int(os.environ.get("PIPELINE_COLLECTION_END_HOUR", "6"))
+        briefing_date = resolve_briefing_date_for_collection(
+            ref_dt=window_end,
+            start_hour=start_hour,
+            end_hour=end_hour,
+        )
+
+        staging_result = append_articles_to_staging(
+            briefing_date=briefing_date,
+            new_articles=articles,
+            window_start=window_start,
+            window_end=window_end,
+        )
+
+        logging.info(
+            "[COLLECT] 누적 저장 완료: "
+            f"briefing_date={briefing_date}, incoming={staging_result['incoming_count']}, "
+            f"added={staging_result['added_count']}, updated={staging_result['updated_count']}, "
+            f"total={staging_result['total_after_merge']}, path={staging_result['path']}"
+        )
+
     logging.info(f"[COLLECT] 수집 시작 (source={keyword_source}, 키워드: {', '.join(keywords)})")
-    collected = run_unified_pipeline(
+    run_unified_pipeline(
         keywords,
         pipeline_name=collect_pipeline_name,
         out_path=None,          # 누적 저장은 staging에서 관리
         upload_to_db=False,     # 야간 수집 단계에서는 DB 적재 생략
         record_run=True,
-    )
-
-    articles = collected.get("articles", [])
-    meta = collected.get("meta", {})
-    window_start = _parse_window_dt(meta["window_start_kst"])
-    window_end = _parse_window_dt(meta["window_end_kst"])
-
-    start_hour = int(os.environ.get("PIPELINE_COLLECTION_START_HOUR", "20"))
-    end_hour = int(os.environ.get("PIPELINE_COLLECTION_END_HOUR", "6"))
-    briefing_date = resolve_briefing_date_for_collection(
-        ref_dt=window_end,
-        start_hour=start_hour,
-        end_hour=end_hour,
-    )
-
-    staging_result = append_articles_to_staging(
-        briefing_date=briefing_date,
-        new_articles=articles,
-        window_start=window_start,
-        window_end=window_end,
-    )
-
-    logging.info(
-        "[COLLECT] 누적 저장 완료: "
-        f"briefing_date={briefing_date}, incoming={staging_result['incoming_count']}, "
-        f"added={staging_result['added_count']}, updated={staging_result['updated_count']}, "
-        f"total={staging_result['total_after_merge']}, path={staging_result['path']}"
+        on_collected=persist_collection,
     )
 
 
@@ -191,14 +194,19 @@ def _resolve_finalize_window(staging_data: dict) -> tuple[datetime, datetime]:
     return now_kst, now_kst
 
 
+def _load_edition_source(target_date: str) -> dict:
+    staging_data = load_staging(target_date)
+    if staging_data.get("meta", {}).get("briefing_date") != target_date:
+        raise ValueError("Staged source edition mismatch")
+    if not staging_data.get("articles"):
+        raise ValueError(f"No staged articles for edition {target_date}")
+    return staging_data
+
+
 def run_finalize_mode(config: dict, briefing_date: str = "") -> None:
     target_date = briefing_date or resolve_briefing_date_for_finalize()
-    staging_data = load_staging(target_date)
-    articles = staging_data.get("articles", [])
-
-    if not articles:
-        logging.warning(f"[FINALIZE] staging 데이터가 없습니다. briefing_date={target_date}")
-        return
+    staging_data = _load_edition_source(target_date)
+    articles = staging_data["articles"]
 
     kst = pytz.timezone("Asia/Seoul")
     finalizer_pipeline_name = os.environ.get("FINALIZER_PIPELINE_NAME", "finalize_briefing").strip() or "finalize_briefing"
@@ -229,8 +237,9 @@ def run_finalize_mode(config: dict, briefing_date: str = "") -> None:
             json.dump(merged_payload, f, ensure_ascii=False, indent=2)
         logging.info(f"[FINALIZE] 병합 입력 파일 생성: {merged_out} ({len(articles)}건)")
 
-        # 2) 클러스터링 + clustered_result 업로드
-        run_clustering_pipeline()
+        # 2) Cluster this edition snapshot, not other files in cache/.
+        candidates = run_clustering_pipeline(merged_payload)
+        validate_candidate_batch(candidates, target_date)
 
         # 3) 원문 기사 DB 적재 (클러스터링 이후)
         upload_result = upload_articles_to_supabase(articles)
@@ -270,10 +279,16 @@ def run_full_mode(config: dict) -> None:
     print("=" * 60)
 
     print(f"\n[STEP 1] 뉴스 통합 스크래핑 파이프라인 가동 (source={keyword_source}, 키워드: {', '.join(keywords)})")
-    run_unified_pipeline(keywords)
+    collected = run_unified_pipeline(keywords)
+    collected["meta"]["briefing_date"] = resolve_briefing_date_for_collection(
+        ref_dt=_parse_window_dt(collected["meta"]["window_end_kst"]),
+        start_hour=int(os.environ.get("PIPELINE_COLLECTION_START_HOUR", "20")),
+        end_hour=int(os.environ.get("PIPELINE_COLLECTION_END_HOUR", "6")),
+    )
 
     print("\n[STEP 2] 뉴스 군집화 및 AI 기반 이슈 시각화 파이프라인 가동")
-    run_clustering_pipeline()
+    candidates = run_clustering_pipeline(collected)
+    validate_candidate_batch(candidates, collected["meta"]["briefing_date"])
 
     print("\n" + "=" * 60)
     print("  🎉 모든 파이프라인이 성공적으로 완료되었습니다!")
@@ -284,7 +299,15 @@ def run_full_mode(config: dict) -> None:
 
 
 def run_brief_mode(briefing_date: str = "") -> None:
-    result = generate_and_cache_briefings(briefing_date=briefing_date or None)
+    target_date = briefing_date or resolve_briefing_date_for_finalize()
+    source = _load_edition_source(target_date)
+    # Recluster the exact staged snapshot on every run. Neither an old report
+    # nor a failed finalize can silently supply candidates for this generation.
+    candidates = run_clustering_pipeline(source)
+    validate_candidate_batch(candidates, target_date)
+    result = generate_and_cache_briefings(
+        briefing_date=target_date, candidate_batch=candidates
+    )
     logging.info(
         "[BRIEF] Redis 브리핑 생성 완료: "
         f"date={result.get('briefing_date')}, subscriptions={result.get('subscriptions')}, "
