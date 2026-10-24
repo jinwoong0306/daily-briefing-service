@@ -1,7 +1,8 @@
 import hashlib
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from time import perf_counter
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import delete, select
@@ -35,7 +36,7 @@ def _try_delete_redis_user_grouped_briefing(user_id: int) -> None:
         if url.startswith("redis://") and ".upstash.io" in url:
             url = "rediss://" + url[len("redis://") :]
         client = Redis.from_url(url, decode_responses=True)
-        briefing_date = datetime.now(timezone.utc).date().isoformat()
+        briefing_date = datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()
         key = f"briefing:{briefing_date}:user:{user_id}"
         client.delete(key)
     except RedisError as exc:

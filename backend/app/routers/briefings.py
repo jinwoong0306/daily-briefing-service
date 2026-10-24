@@ -4,6 +4,7 @@ import json
 import logging
 import re
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from redis import Redis
@@ -34,6 +35,11 @@ _FALLBACK_IMAGE_URL = (
     "https://images.unsplash.com/photo-1504711434969-e33886168f5c"
     "?auto=format&fit=crop&w=1200&q=80"
 )
+
+
+def _briefing_date(now: datetime | None = None) -> str:
+    instant = now if now is not None else datetime.now(timezone.utc)
+    return instant.astimezone(ZoneInfo("Asia/Seoul")).date().isoformat()
 
 
 def _redis_client() -> Redis:
@@ -241,7 +247,6 @@ def _ensure_article_row(
     db: Session,
     article_id: int,
     title: str,
-    content: str,
     keyword: str,
     source_type: str,
     pub_date: datetime,
@@ -253,42 +258,19 @@ def _ensure_article_row(
         {"article_id": article_id},
     ).scalar()
     if existing:
-        db.execute(
-            text(
-                f"""
-                update {articles_table}
-                set title = :title,
-                    content = :content,
-                    keyword = :keyword,
-                    source_type = :source_type,
-                    pub_date = :pub_date,
-                    url = :url
-                where id = :article_id
-                """
-            ),
-            {
-                "article_id": article_id,
-                "title": title,
-                "content": content,
-                "keyword": keyword,
-                "source_type": source_type,
-                "pub_date": pub_date,
-                "url": url,
-            },
-        )
         return
     db.execute(
         text(
             f"""
             insert into {articles_table}
             (id, title, content, keyword, source_type, pub_date, url)
-            values (:article_id, :title, :content, :keyword, :source_type, :pub_date, :url)
+            values (:article_id, :title, '', :keyword, :source_type,
+                    :pub_date, :url)
             """
         ),
         {
             "article_id": article_id,
             "title": title,
-            "content": content,
             "keyword": keyword,
             "source_type": source_type,
             "pub_date": pub_date,
@@ -315,7 +297,7 @@ def _load_redis_keyword_items(current_user: User, db: Session) -> list[BriefingI
         logger.warning("Redis briefings unavailable: %s", exc)
         return []
 
-    briefing_date = datetime.now(timezone.utc).date().isoformat()
+    briefing_date = _briefing_date()
     normalized_items: list[dict[str, object]] = []
 
     for keyword in keywords:
@@ -355,7 +337,6 @@ def _load_redis_keyword_items(current_user: User, db: Session) -> list[BriefingI
                 db=db,
                 article_id=article_id,
                 title=title,
-                content=summary,
                 keyword=keyword.strip(),
                 source_type=source_name,
                 pub_date=published_at,
@@ -419,7 +400,7 @@ def _load_redis_keyword_items(current_user: User, db: Session) -> list[BriefingI
 def _load_redis_user_grouped(current_user: User) -> BriefingsTodayGroupedResponse | None:
     if not settings.redis_url:
         return None
-    briefing_date = datetime.now(timezone.utc).date().isoformat()
+    briefing_date = _briefing_date()
     user_key = f"briefing:{briefing_date}:user:{current_user.id}"
     try:
         client = _redis_client()
@@ -711,6 +692,8 @@ def _build_grouped_from_today_items(
                     image_url=it.image_url,
                     pub_date=it.published_at,
                     source_type=it.source_name,
+                    is_bookmarked=it.is_bookmarked,
+                    feedback_type=it.feedback_type,
                 )
             )
         blocks.append(
@@ -734,11 +717,55 @@ def get_today_grouped_briefings(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> BriefingsTodayGroupedResponse:
-    briefing_date = datetime.now(timezone.utc).date().isoformat()
+    briefing_date = _briefing_date()
     grouped = _load_redis_user_grouped(current_user=current_user)
     if grouped is not None:
         grouped = _filter_grouped_response_by_user_keywords(grouped, current_user, db)
         if grouped.keywords:
+            article_ids: list[int] = []
+            for block in grouped.keywords:
+                for item in block.items:
+                    article_id = _normalize_article_id(
+                        item.id, item.url, item.title,
+                    )
+                    _ensure_article_row(
+                        db=db,
+                        article_id=article_id,
+                        title=item.title,
+                        keyword=block.keyword,
+                        source_type=item.source_type or "Redis Feed",
+                        pub_date=item.pub_date or datetime.now(timezone.utc),
+                        url=item.url,
+                    )
+                    item.id = str(article_id)
+                    article_ids.append(article_id)
+            if article_ids:
+                db.commit()
+                saved_ids = set(
+                    db.scalars(
+                        select(UserSavedArticle.article_id).where(
+                            UserSavedArticle.user_id == current_user.id,
+                            UserSavedArticle.article_id.in_(article_ids),
+                        )
+                    ).all()
+                )
+                feedback_rows = db.execute(
+                    select(
+                        UserArticleFeedback.article_id,
+                        UserArticleFeedback.feedback_type,
+                    ).where(
+                        UserArticleFeedback.user_id == current_user.id,
+                        UserArticleFeedback.article_id.in_(article_ids),
+                    )
+                ).all()
+                feedback_by_id = {
+                    article_id: feedback
+                    for article_id, feedback in feedback_rows
+                }
+                for block in grouped.keywords:
+                    for item in block.items:
+                        item.is_bookmarked = int(item.id) in saved_ids
+                        item.feedback_type = feedback_by_id.get(int(item.id))
             return grouped
     today = get_today_briefings(current_user=current_user, db=db)
     if not today.items:

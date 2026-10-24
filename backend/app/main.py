@@ -46,9 +46,12 @@ async def lifespan(_: FastAPI):
         Base.metadata.create_all(bind=engine)
 
     if settings.jwt_secret_key == "change-this-secret-in-production":
+        if settings.app_env.lower() == "prod":
+            raise RuntimeError(
+                "JWT_SECRET_KEY must be configured before production startup"
+            )
         logger.warning(
-            "JWT_SECRET_KEY is still set to the default value. "
-            "Set a strong secret before production deployment."
+            "JWT_SECRET_KEY is still set to the default development value."
         )
 
     if not check_db_connection():

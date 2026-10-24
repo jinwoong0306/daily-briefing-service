@@ -124,6 +124,8 @@ class BriefingGroupedKeywordItemResponse(BaseModel):
     image_url: str | None = None
     pub_date: datetime | None = None
     source_type: str | None = None
+    is_bookmarked: bool = False
+    feedback_type: str | None = None
 
 
 class BriefingGroupedKeywordResponse(BaseModel):

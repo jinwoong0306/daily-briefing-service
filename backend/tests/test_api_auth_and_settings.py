@@ -17,7 +17,7 @@ os.environ["REDIS_URL"] = ""
 os.environ["SUPABASE_URL"] = "https://example-project.supabase.co"
 os.environ["SUPABASE_ANON_KEY"] = "test-supabase-anon-key"
 
-from app.db import Base, engine  # noqa: E402
+from app.db import Base, SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402
 from app.routers.auth import login_rate_limiter  # noqa: E402
 from app.routers import auth as auth_router  # noqa: E402
@@ -466,10 +466,15 @@ class _FakeRedis:
         return None
 
 
-def test_ingest_redis_keys_and_pull(client: TestClient):
+def test_ingest_redis_keys_and_pull(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch,
+):
     register_response = register_user(client, email="ingest@example.com")
     token = register_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
+    monkeypatch.setattr(
+        ingest_router.settings, "ingest_admin_emails", "ingest@example.com",
+    )
 
     original_client_factory = ingest_router._redis_client
     ingest_router._redis_client = lambda: _FakeRedis()
@@ -496,10 +501,16 @@ def test_ingest_redis_keys_and_pull(client: TestClient):
         ingest_router._redis_client = original_client_factory
 
 
-def test_ingest_redis_batch_pull(client: TestClient):
+def test_ingest_redis_batch_pull(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch,
+):
     register_response = register_user(client, email="ingest-batch@example.com")
     token = register_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
+    monkeypatch.setattr(
+        ingest_router.settings, "ingest_admin_emails",
+        "ingest-batch@example.com",
+    )
 
     original_client_factory = ingest_router._redis_client
     ingest_router._redis_client = lambda: _FakeRedis()
@@ -612,9 +623,59 @@ def test_briefings_today_grouped_filtered_to_saved_keywords(
     assert body["keywords"][0]["items"][0]["title"] == "Politics News"
 
 
+def test_grouped_cache_articles_support_bookmarks_and_feedback(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch,
+):
+    from app.routers import briefings as briefings_router
+
+    class GroupedRedis:
+        def get(self, key: str):
+            if ":user:" not in key:
+                return None
+            return (
+                '{"keywords":[{"keyword":"정치","items":[{"id":"external-id",'
+                '"title":"원문 기사","summary":"AI 요약",'
+                '"url":"https://example.com/grounded-article"}]}]}'
+            )
+
+    token = register_user(
+        client, email="grouped-actions@example.com",
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    client.put(
+        "/api/v1/users/keywords", headers=headers,
+        json={"keywords": ["정치"]},
+    )
+    monkeypatch.setattr(briefings_router.settings, "redis_url", "redis://fake")
+    monkeypatch.setattr(briefings_router, "_redis_client", GroupedRedis)
+
+    first = client.get("/api/v1/briefings/today/grouped", headers=headers)
+    article_id = first.json()["keywords"][0]["items"][0]["id"]
+    bookmark = client.put(
+        f"/api/v1/briefings/{article_id}/bookmark", headers=headers,
+    )
+    feedback = client.post(
+        f"/api/v1/briefings/{article_id}/feedback",
+        headers=headers,
+        json={"feedback_type": "like"},
+    )
+    second = client.get("/api/v1/briefings/today/grouped", headers=headers)
+
+    assert first.status_code == 200
+    assert article_id.isdigit()
+    assert bookmark.status_code == 200
+    assert feedback.status_code == 200
+    assert second.status_code == 200
+    item = second.json()["keywords"][0]["items"][0]
+    assert item["is_bookmarked"] is True
+    assert item["feedback_type"] == "like"
+
+
 def test_briefings_today_grouped_falls_back_to_db_sections(client: TestClient):
     """Redis 묶음 없을 때 today 기사를 카테고리 섹션으로 돌려준다."""
-    register_response = register_user(client, email="grouped-db-fallback@example.com")
+    register_response = register_user(
+        client, email="grouped-db-fallback@example.com",
+    )
     assert register_response.status_code == 201
     token = register_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
@@ -627,8 +688,14 @@ def test_briefings_today_grouped_falls_back_to_db_sections(client: TestClient):
     )
     assert put_resp.status_code == 200
 
-    insert_article(article_id=301, title="Economy A", keyword="economy", pub_date=recent)
-    insert_article(article_id=302, title="Politics A", keyword="politics", pub_date=recent)
+    insert_article(
+        article_id=301, title="Economy A", keyword="economy",
+        pub_date=recent,
+    )
+    insert_article(
+        article_id=302, title="Politics A", keyword="politics",
+        pub_date=recent,
+    )
 
     response = client.get("/api/v1/briefings/today/grouped", headers=headers)
     assert response.status_code == 200
@@ -638,6 +705,208 @@ def test_briefings_today_grouped_falls_back_to_db_sections(client: TestClient):
     assert "정치" in kws
     assert any(b.get("headline") for b in body["keywords"])
     assert any(b.get("summary") for b in body["keywords"])
+
+
+def test_morning_briefing_uses_seoul_date_for_both_cache_routes(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch,
+):
+    from app.routers import briefings as briefings_router
+
+    class EditionRedis:
+        def get(self, key: str):
+            if key == "briefing:2026-10-22:keyword:%EC%A0%95%EC%B9%98":
+                return (
+                    '{"items":[{"id":401,"title":"오늘 기사","summary":"오늘 요약",'
+                    '"url":"https://example.com/today",'
+                    '"pub_date":"2026-10-22T08:00:00+09:00"}]}'
+                )
+            if key == "briefing:2026-10-22:user:1":
+                return (
+                    '{"briefing_date":"2026-10-22",'
+                    '"keywords":[{"keyword":"정치",'
+                    '"items":[{"id":401,"title":"오늘 기사","summary":"오늘 요약",'
+                    '"url":"https://example.com/today"}]}]}'
+                )
+            return None
+
+    token = register_user(
+        client, email="seoul-day@example.com",
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    client.put(
+        "/api/v1/users/keywords", headers=headers,
+        json={"keywords": ["정치"]},
+    )
+    edition = briefings_router._briefing_date(
+        datetime(2026, 10, 21, 23, 0, tzinfo=timezone.utc),
+    )
+    monkeypatch.setattr(briefings_router, "_briefing_date", lambda: edition)
+    monkeypatch.setattr(briefings_router.settings, "redis_url", "redis://fake")
+    monkeypatch.setattr(briefings_router, "_redis_client", EditionRedis)
+
+    today = client.get("/api/v1/briefings/today", headers=headers)
+    grouped = client.get("/api/v1/briefings/today/grouped", headers=headers)
+
+    assert edition == "2026-10-22"
+    assert today.status_code == 200
+    assert [item["title"] for item in today.json()["items"]] == ["오늘 기사"]
+    assert grouped.status_code == 200
+    assert grouped.json()["briefing_date"] == "2026-10-22"
+    assert grouped.json()["keywords"][0]["items"][0]["title"] == "오늘 기사"
+
+
+def test_keyword_update_invalidates_seoul_edition(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from app.routers import keywords as keywords_router
+    from redis import Redis
+
+    deleted = []
+
+    class Morning(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            instant = datetime(2026, 10, 21, 23, 0, tzinfo=timezone.utc)
+            return (
+                instant.astimezone(tz)
+                if tz else instant.replace(tzinfo=None)
+            )
+
+    class Cache:
+        def delete(self, key):
+            deleted.append(key)
+
+    monkeypatch.setattr(keywords_router, "datetime", Morning)
+    monkeypatch.setattr(keywords_router.settings, "redis_url", "redis://fake")
+    monkeypatch.setattr(Redis, "from_url", lambda *args, **kwargs: Cache())
+
+    keywords_router._try_delete_redis_user_grouped_briefing(7)
+
+    assert deleted == ["briefing:2026-10-22:user:7"]
+
+
+def test_cached_summary_does_not_replace_source_article(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch,
+):
+    from app.routers import briefings as briefings_router
+
+    class SummaryRedis:
+        def get(self, key: str):
+            if ":keyword:" not in key:
+                return None
+            return (
+                '{"items":[{"id":402,"title":"기사","summary":"AI 요약",'
+                '"url":"https://example.com/source",'
+                '"pub_date":"2026-10-22T08:00:00+09:00"}]}'
+            )
+
+    token = register_user(
+        client, email="preserve-source@example.com",
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    client.put(
+        "/api/v1/users/keywords", headers=headers,
+        json={"keywords": ["정치"]},
+    )
+    insert_article(
+        article_id=402, title="기사", keyword="정치",
+        content="FULL SOURCE ARTICLE",
+    )
+    monkeypatch.setattr(briefings_router.settings, "redis_url", "redis://fake")
+    monkeypatch.setattr(briefings_router, "_redis_client", SummaryRedis)
+
+    response = client.get("/api/v1/briefings/today", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["items"][0]["summary"] == "AI 요약"
+    with engine.connect() as connection:
+        content = connection.execute(
+            text("select content from articles where id = 402")
+        ).scalar_one()
+    assert content == "FULL SOURCE ARTICLE"
+
+
+def test_ingesting_briefing_cache_keeps_original_article_body(
+    client: TestClient,
+):
+    insert_article(
+        article_id=403,
+        title="기사",
+        keyword="정치",
+        content="FULL SOURCE ARTICLE",
+        url="https://example.com/source-403",
+    )
+    with SessionLocal() as db:
+        result = ingest_router._ingest_records_for_key(
+            db=db,
+            key="briefing:2026-10-22:keyword:%EC%A0%95%EC%B9%98",
+            raw_items=[
+                {
+                    "title": "기사",
+                    "summary": "AI 요약",
+                    "url": "https://example.com/source-403",
+                    "keyword": "정치",
+                },
+                {
+                    "title": "새 캐시 기사",
+                    "summary": "새 요약",
+                    "url": "https://example.com/new-cache-404",
+                    "keyword": "정치",
+                },
+            ],
+        )
+
+    with engine.connect() as connection:
+        rows = connection.execute(
+            text(
+                "select url, content from articles "
+                "where url in ('https://example.com/source-403', "
+                "'https://example.com/new-cache-404')"
+            )
+        ).all()
+    assert result["fetched"] == 2
+    assert dict(rows) == {
+        "https://example.com/source-403": "FULL SOURCE ARTICLE",
+        "https://example.com/new-cache-404": "",
+    }
+
+
+def test_ingest_partial_failure_counts_only_persisted_rows(client: TestClient):
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "CREATE TRIGGER reject_article BEFORE INSERT ON articles "
+                "WHEN NEW.url = 'https://example.com/rejected' "
+                "BEGIN SELECT RAISE(FAIL, 'rejected row'); END"
+            )
+        )
+    records = [
+        {
+            "title": label,
+            "url": f"https://example.com/{label}",
+            "content": label,
+        }
+        for label in ("first", "rejected", "last")
+    ]
+    with SessionLocal() as db:
+        result = ingest_router._ingest_records_for_key(
+            db=db,
+            key="news:list",
+            raw_items=records,
+        )
+
+    with engine.connect() as connection:
+        urls = connection.execute(
+            text(
+                "select url from articles where url in "
+                "('https://example.com/first', "
+                "'https://example.com/rejected', "
+                "'https://example.com/last') order by url"
+            )
+        ).scalars().all()
+    assert result["created"] == 2
+    assert result["skipped"] == 1
+    assert urls == ["https://example.com/first", "https://example.com/last"]
 
 
 def test_ingest_admin_email_restriction(client: TestClient):
@@ -660,8 +929,43 @@ def test_ingest_admin_email_restriction(client: TestClient):
         assert blocked_body["success"] is False
         assert blocked_body["error"]["code"] == "FORBIDDEN"
 
-        allowed_response = client.get("/api/v1/ingest/redis/keys", headers=allowed_headers)
+        allowed_response = client.get(
+            "/api/v1/ingest/redis/keys", headers=allowed_headers,
+        )
         assert allowed_response.status_code == 200
     finally:
         ingest_router.settings.ingest_admin_emails = original_admin_emails
         ingest_router._redis_client = original_client_factory
+
+
+def test_ingest_denied_when_admin_list_is_unconfigured(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch,
+):
+    token = register_user(
+        client, email="not-admin@example.com",
+    ).json()["access_token"]
+    monkeypatch.setattr(ingest_router.settings, "ingest_admin_emails", "")
+
+    response = client.get(
+        "/api/v1/ingest/redis/keys",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 403
+
+
+def test_production_rejects_default_jwt_secret(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from app.main import settings
+
+    monkeypatch.setattr(settings, "app_env", "prod")
+    monkeypatch.setattr(
+        settings, "jwt_secret_key", "change-this-secret-in-production",
+    )
+
+    with pytest.raises(
+        RuntimeError, match="JWT_SECRET_KEY must be configured",
+    ):
+        with TestClient(app):
+            pass

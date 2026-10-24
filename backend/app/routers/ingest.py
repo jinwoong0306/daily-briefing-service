@@ -34,8 +34,6 @@ def _ingest_admin_email_set() -> set[str]:
 
 def _assert_ingest_admin(current_user: User) -> None:
     allowed_emails = _ingest_admin_email_set()
-    if not allowed_emails:
-        return
     if current_user.email.lower() not in allowed_emails:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -133,7 +131,9 @@ def _infer_keyword_from_key(key: str) -> str | None:
     return decoded or None
 
 
-def _upsert_article(item: dict[str, Any], db: Session) -> str:
+def _upsert_article(
+    item: dict[str, Any], db: Session, *, from_briefing: bool = False,
+) -> str:
     articles_table = _table_name("articles", db)
     existing_id = None
     if item["url"]:
@@ -143,6 +143,8 @@ def _upsert_article(item: dict[str, Any], db: Session) -> str:
         ).scalar()
 
     if existing_id is not None:
+        if from_briefing:
+            return "skipped"
         db.execute(
             text(
                 f"""
@@ -166,6 +168,8 @@ def _upsert_article(item: dict[str, Any], db: Session) -> str:
         )
         return "updated"
 
+    if from_briefing:
+        item["content"] = ""
     db.execute(
         text(
             f"""
@@ -243,6 +247,7 @@ def _ingest_records_for_key(
     raw_items: list[dict[str, Any]],
 ) -> dict[str, int | str]:
     inferred_keyword = _infer_keyword_from_key(key)
+    from_briefing = key.startswith("briefing:")
     created = 0
     updated = 0
     skipped = 0
@@ -257,15 +262,19 @@ def _ingest_records_for_key(
             skipped += 1
             continue
         try:
-            status_text = _upsert_article(item, db)
+            with db.begin_nested():
+                status_text = _upsert_article(
+                    item, db, from_briefing=from_briefing,
+                )
         except SQLAlchemyError:
-            db.rollback()
             skipped += 1
             continue
         if status_text == "created":
             created += 1
-        else:
+        elif status_text == "updated":
             updated += 1
+        else:
+            skipped += 1
     db.commit()
     return {
         "key": key,

@@ -154,6 +154,8 @@ INGEST_BATCH_MAX_KEYS=10
 ```
 
 - `INGEST_ADMIN_EMAILS`가 설정된 경우, 해당 이메일 사용자만 ingest API를 호출할 수 있습니다.
+- `INGEST_ADMIN_EMAILS`가 비어 있으면 ingest API는 모든 사용자에게 403을 반환합니다. 수동 적재를 사용하려면 관리 계정 이메일을 명시하세요.
+- 운영 환경(`APP_ENV=prod`)에서는 예시 `JWT_SECRET_KEY`를 그대로 사용하면 서버가 시작되지 않습니다. 안전한 별도 비밀키를 설정하세요.
 - `INGEST_SCHEDULER_ENABLED=true`면 서버 실행 중 배치 적재가 주기적으로 자동 수행됩니다.
 
 사용 순서:
