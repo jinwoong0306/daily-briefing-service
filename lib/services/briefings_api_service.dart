@@ -165,6 +165,10 @@ class BriefingsApiService {
               publishedAt: publishedAt,
               readTimeMinutes: 1,
               originalUrl: item['url']?.toString(),
+              isBookmarked: item['is_bookmarked'] == true,
+              feedbackType: item['feedback_type'] is String
+                  ? item['feedback_type'] as String
+                  : null,
             ),
           );
         }

@@ -148,19 +148,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       _keywordsVersion = response.version;
       final int deliveryHour = BriefingDeliveryTime.normalizeHour(_hour);
       try {
-        await _notificationApiService.updateSettings(
-          enabled: true,
-          deliveryHour: deliveryHour,
-          deliveryMinute: _minute,
-          timezone: 'Asia/Seoul',
-        );
-        await LocalNotificationService().scheduleDailyBriefingNotification(
-          enabled: true,
+        final LocalNotificationService notifications =
+            LocalNotificationService();
+        final bool allowed = await notifications.requestPermission();
+        final bool scheduled =
+            await notifications.scheduleDailyBriefingNotification(
+          enabled: allowed,
           hour: deliveryHour,
           minute: _minute,
           keywords: response.keywords,
           timezoneName: 'Asia/Seoul',
         );
+        final bool enabled = allowed && scheduled;
+        await _notificationApiService.updateSettings(
+          enabled: enabled,
+          deliveryHour: deliveryHour,
+          deliveryMinute: _minute,
+          timezone: 'Asia/Seoul',
+        );
+        if (!enabled && mounted) {
+          _showMessage('기기 알림이 허용되지 않았거나 예약에 실패했습니다. 설정에서 다시 켤 수 있습니다.');
+        }
       } on ApiException catch (error) {
         if (mounted) {
           _showMessage(

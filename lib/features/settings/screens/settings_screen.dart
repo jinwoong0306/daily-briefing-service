@@ -111,8 +111,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               children: <Widget>[
                 _SettingSwitchTile(
-                  title: '푸시 알림',
-                  subtitle: '브리핑 및 시스템 알림을 수신합니다.',
+                  title: '기기 내 브리핑 알림',
+                  subtitle: '선택한 시각에 앱에서 브리핑을 확인하도록 알려줍니다.',
                   value: _settings.pushEnabled,
                   onChanged: (bool value) {
                     setState(() {

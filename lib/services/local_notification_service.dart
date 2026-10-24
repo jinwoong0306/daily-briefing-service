@@ -297,7 +297,7 @@ class LocalNotificationService {
       return '설정한 시간입니다. 오늘의 브리핑을 확인해 주세요.';
     }
     final String joined = cleaned.take(3).join(', ');
-    return '$joined 키워드 브리핑이 준비되었습니다. 지금 확인해 보세요.';
+    return '$joined 키워드 브리핑을 확인할 시간입니다. 앱에서 확인해 보세요.';
   }
 
   Future<bool> _isPermissionGranted() async {
